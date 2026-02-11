@@ -1,0 +1,190 @@
+[
+  {
+    "id": "gossip_spreads",
+    "name": "Gossip Spreads",
+    "description": "Office gossip is making the rounds — someone's been talking behind backs.",
+    "probability": 0.15,
+    "category": "social",
+    "target_mode": "random",
+    "duration_minutes": 60,
+    "cooldown_days": 2,
+    "need_effects": {"social": 10}
+  },
+  {
+    "id": "surprise_party",
+    "name": "Surprise Party",
+    "description": "A surprise party breaks out in the office! Everyone celebrates.",
+    "probability": 0.05,
+    "category": "social",
+    "target_mode": "global",
+    "duration_minutes": 30,
+    "cooldown_days": 7,
+    "need_effects": {"social": 25, "hunger": 15}
+  },
+  {
+    "id": "heated_argument",
+    "name": "Heated Argument",
+    "description": "A heated argument breaks out between two colleagues.",
+    "probability": 0.06,
+    "category": "social",
+    "target_mode": "random",
+    "duration_minutes": 15,
+    "cooldown_days": 3,
+    "need_effects": {"social": -15, "energy": -5}
+  },
+  {
+    "id": "secret_shared",
+    "name": "Secret Shared",
+    "description": "Someone shared a personal secret, creating a deeper bond.",
+    "probability": 0.08,
+    "category": "social",
+    "target_mode": "random",
+    "duration_minutes": 0,
+    "cooldown_days": 4,
+    "need_effects": {"social": 15}
+  },
+  {
+    "id": "promotion",
+    "name": "Promotion",
+    "description": "Someone earned a well-deserved promotion!",
+    "probability": 0.03,
+    "category": "work",
+    "target_mode": "most_productive",
+    "duration_minutes": 0,
+    "cooldown_days": 10,
+    "need_effects": {"productivity": 30, "social": 10}
+  },
+  {
+    "id": "deadline_crunch",
+    "name": "Deadline Crunch",
+    "description": "An urgent deadline is looming — everyone needs to buckle down.",
+    "probability": 0.08,
+    "category": "work",
+    "target_mode": "global",
+    "duration_minutes": 120,
+    "cooldown_days": 5,
+    "need_effects": {"productivity": -20, "energy": -10}
+  },
+  {
+    "id": "creative_breakthrough",
+    "name": "Creative Breakthrough",
+    "description": "A flash of inspiration strikes! Someone has a brilliant idea.",
+    "probability": 0.06,
+    "category": "work",
+    "target_mode": "random",
+    "duration_minutes": 0,
+    "cooldown_days": 4,
+    "need_effects": {"productivity": 25, "energy": 5}
+  },
+  {
+    "id": "project_failure",
+    "name": "Project Failure",
+    "description": "A major project hit a critical failure. Morale takes a hit.",
+    "probability": 0.04,
+    "category": "work",
+    "target_mode": "global",
+    "duration_minutes": 0,
+    "cooldown_days": 7,
+    "need_effects": {"productivity": -20, "social": -5}
+  },
+  {
+    "id": "flu_outbreak",
+    "name": "Flu Outbreak",
+    "description": "A flu is going around the office. Someone caught it.",
+    "probability": 0.04,
+    "category": "health",
+    "target_mode": "random",
+    "duration_minutes": 0,
+    "cooldown_days": 7,
+    "need_effects": {"energy": -20, "health": -15}
+  },
+  {
+    "id": "exhaustion_collapse",
+    "name": "Exhaustion Collapse",
+    "description": "Someone pushed too hard and collapsed from exhaustion.",
+    "probability": 0.03,
+    "category": "health",
+    "target_mode": "random",
+    "duration_minutes": 0,
+    "cooldown_days": 5,
+    "need_effects": {"energy": -40, "health": -10}
+  },
+  {
+    "id": "recovery",
+    "name": "Recovery",
+    "description": "Good news — someone is feeling much better today!",
+    "probability": 0.1,
+    "category": "health",
+    "target_mode": "random",
+    "duration_minutes": 0,
+    "cooldown_days": 3,
+    "need_effects": {"health": 20, "energy": 15}
+  },
+  {
+    "id": "power_outage",
+    "name": "Power Outage",
+    "description": "The power went out! No electronics work for a while.",
+    "probability": 0.03,
+    "category": "environment",
+    "target_mode": "global",
+    "duration_minutes": 60,
+    "cooldown_days": 10,
+    "need_effects": {"productivity": -10},
+    "global_effect": "disable_objects"
+  },
+  {
+    "id": "pizza_delivery",
+    "name": "Pizza Delivery",
+    "description": "Someone ordered pizza for the whole office!",
+    "probability": 0.1,
+    "category": "environment",
+    "target_mode": "global",
+    "duration_minutes": 0,
+    "cooldown_days": 3,
+    "need_effects": {"hunger": 40, "social": 5}
+  },
+  {
+    "id": "fire_drill",
+    "name": "Fire Drill",
+    "description": "Fire drill! Everyone needs to stop what they're doing.",
+    "probability": 0.03,
+    "category": "environment",
+    "target_mode": "global",
+    "duration_minutes": 15,
+    "cooldown_days": 14,
+    "need_effects": {"productivity": -5, "social": 5}
+  },
+  {
+    "id": "birthday",
+    "name": "Birthday",
+    "description": "It's someone's birthday! The office celebrates with cake.",
+    "probability": 0.08,
+    "category": "personal",
+    "target_mode": "random",
+    "duration_minutes": 30,
+    "cooldown_days": 5,
+    "need_effects": {"social": 25, "hunger": 10}
+  },
+  {
+    "id": "existential_crisis",
+    "name": "Existential Crisis",
+    "description": "Someone is questioning the meaning of their work and life choices.",
+    "probability": 0.05,
+    "category": "personal",
+    "target_mode": "random",
+    "duration_minutes": 0,
+    "cooldown_days": 7,
+    "need_effects": {"productivity": -15, "social": -10}
+  },
+  {
+    "id": "new_hobby",
+    "name": "New Hobby",
+    "description": "Someone discovered a new hobby and can't stop talking about it!",
+    "probability": 0.07,
+    "category": "personal",
+    "target_mode": "random",
+    "duration_minutes": 0,
+    "cooldown_days": 5,
+    "need_effects": {"social": 10, "energy": 5}
+  }
+]

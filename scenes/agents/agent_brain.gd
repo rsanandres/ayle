@@ -8,6 +8,7 @@ var personality: PersonalityProfile
 var _agent: Node2D
 var _heuristic: HeuristicBrain
 var _memory: AgentMemory
+var _relationships: AgentRelationships
 var _waiting_for_llm: bool = false
 
 # JSON schema for Ollama structured output
@@ -16,7 +17,7 @@ var _decision_format := {
 	"properties": {
 		"action": {
 			"type": "string",
-			"enum": ["go_to_object", "talk_to_agent", "idle", "wander"],
+			"enum": ["go_to_object", "talk_to_agent", "idle", "wander", "confess_feelings"],
 		},
 		"target": {
 			"type": "string",
@@ -35,6 +36,7 @@ func _ready() -> void:
 	_agent = get_parent()
 	_heuristic = _agent.get_node("HeuristicBrain")
 	_memory = _agent.get_node("AgentMemory")
+	_relationships = _agent.get_node("AgentRelationships")
 
 
 func decide(needs: AgentNeeds, nearby_objects: Array, nearby_agents: Array) -> Dictionary:
@@ -56,6 +58,7 @@ func _request_llm_decision(needs: AgentNeeds, nearby_objects: Array, nearby_agen
 	var needs_values := needs.get_all_values()
 	var relevant_memories := _memory.retrieve(_build_context_query(needs, nearby_objects, nearby_agents), 7)
 	var memories_text := _memory.format_memories_for_prompt(relevant_memories)
+	var relationships_text := _relationships.get_all_as_summary() if _relationships else "(none)"
 
 	var system_prompt := PromptBuilder.build("system", {
 		"name": personality.agent_name if personality else _agent.agent_name,
@@ -69,6 +72,7 @@ func _request_llm_decision(needs: AgentNeeds, nearby_objects: Array, nearby_agen
 		"quirks": ", ".join(personality.quirks) if personality else "",
 	})
 
+	var health_val: float = needs_values.get(NeedType.Type.HEALTH, 100.0)
 	var user_prompt := PromptBuilder.build("decision", {
 		"name": personality.agent_name if personality else _agent.agent_name,
 		"description": personality.description if personality else "",
@@ -80,8 +84,10 @@ func _request_llm_decision(needs: AgentNeeds, nearby_objects: Array, nearby_agen
 		"hunger": "%.0f" % needs_values.get(NeedType.Type.HUNGER, 50.0),
 		"social": "%.0f" % needs_values.get(NeedType.Type.SOCIAL, 50.0),
 		"productivity": "%.0f" % needs_values.get(NeedType.Type.PRODUCTIVITY, 50.0),
+		"health": "%.0f" % health_val,
 		"objects": objects_text,
 		"agents": agents_text,
+		"relationships": relationships_text,
 		"memories": memories_text,
 	})
 
@@ -133,6 +139,11 @@ func _parse_llm_decision(action_str: String, target_str: String, nearby_objects:
 			var target := _find_agent_by_name(target_str, nearby_agents)
 			if target:
 				return {"action": ActionType.Type.TALK_TO_AGENT, "target": target}
+			return {"action": ActionType.Type.WANDER}
+		"confess_feelings":
+			var target := _find_agent_by_name(target_str, nearby_agents)
+			if target:
+				return {"action": ActionType.Type.CONFESS_FEELINGS, "target": target}
 			return {"action": ActionType.Type.WANDER}
 		"wander":
 			return {"action": ActionType.Type.WANDER}

@@ -11,12 +11,16 @@ Current situation:
 - Hunger: {hunger}/100
 - Social: {social}/100
 - Productivity: {productivity}/100
+- Health: {health}/100
 
 Nearby objects you can use:
 {objects}
 
 Nearby people:
 {agents}
+
+Your relationships:
+{relationships}
 
 Your recent memories:
 {memories}
@@ -25,5 +29,6 @@ Based on your personality and current needs, decide what to do next. Pick ONE ac
 
 If you choose "go_to_object", pick from the available objects listed above.
 If you choose "talk_to_agent", pick from the nearby people listed above.
+If you choose "confess_feelings", pick an agent you have strong romantic feelings for.
 
 Also share a brief inner thought (what you're thinking/feeling right now, in character).

@@ -1,0 +1,7 @@
+You are {name}, {description}
+Your personality: {personality}
+Your current mood: {mood}
+
+An event just happened: {event_description}
+
+How does {name} react to this? Give a brief inner thought (1 sentence, under 15 words).

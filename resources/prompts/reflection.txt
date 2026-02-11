@@ -11,4 +11,7 @@ Based on these experiences, what higher-level insight or reflection can you make
 - Have your opinions about anyone changed?
 - What do you want to do differently going forward?
 
-Provide a single, concise reflection statement (1-2 sentences).
+Provide:
+- "reflection": A single, concise reflection statement (1-2 sentences)
+- "emotion": Your current dominant emotion (one word: happy, sad, anxious, content, frustrated, excited, lonely, grateful, etc.)
+- "narrative_thread": A short label for the storyline this relates to (e.g. "friendship_with_bob", "career_stress", "office_life")

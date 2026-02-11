@@ -1,15 +1,18 @@
 class_name AgentMemory
 extends Node
-## Per-agent memory stream with retrieval scoring and reflection triggers.
+## Per-agent memory stream with retrieval scoring, narrative threads, and reflection triggers.
 
-const MAX_MEMORIES := 200
+const MAX_MEMORIES := 300
 const REFLECTION_IMPORTANCE_THRESHOLD := 50.0
 const COMPACTION_BATCH := 50
+const LIFE_SUMMARY_INTERVAL := 50  # regenerate every N memories
 
 var memories: Array[MemoryEntry] = []
 var _importance_accumulator: float = 0.0
 var _agent_name: String = ""
 var _is_reflecting: bool = false
+var _memory_count_since_summary: int = 0
+var _life_summary: String = ""
 
 
 func setup(agent_name: String) -> void:
@@ -21,10 +24,15 @@ func add_memory(type: MemoryEntry.MemoryType, description: String, importance: f
 	entry.related_agents = related_agents
 	memories.append(entry)
 	_importance_accumulator += importance
+	_memory_count_since_summary += 1
 
 	# Trigger reflection if accumulated importance is high enough
 	if _importance_accumulator >= REFLECTION_IMPORTANCE_THRESHOLD and not _is_reflecting:
 		_trigger_reflection()
+
+	# Regenerate life summary periodically
+	if _memory_count_since_summary >= LIFE_SUMMARY_INTERVAL:
+		_regenerate_life_summary()
 
 	# Compact if too many memories
 	if memories.size() > MAX_MEMORIES:
@@ -75,13 +83,45 @@ func get_recent(count: int = 10) -> Array[MemoryEntry]:
 	return result
 
 
+func get_memories_about(agent_name: String, count: int = 10) -> Array[MemoryEntry]:
+	var result: Array[MemoryEntry] = []
+	# Iterate in reverse for recency
+	for i in range(memories.size() - 1, -1, -1):
+		var mem := memories[i]
+		if agent_name in mem.related_agents or agent_name.to_lower() in mem.description.to_lower():
+			result.append(mem)
+			if result.size() >= count:
+				break
+	return result
+
+
+func get_narrative_threads() -> Dictionary:
+	## Returns {thread_name: Array[MemoryEntry]}
+	var threads: Dictionary = {}
+	for mem in memories:
+		if mem.narrative_thread != "":
+			if not threads.has(mem.narrative_thread):
+				threads[mem.narrative_thread] = []
+			threads[mem.narrative_thread].append(mem)
+	return threads
+
+
+func get_life_summary() -> String:
+	if _life_summary == "":
+		_regenerate_life_summary_sync()
+	return _life_summary
+
+
 func format_memories_for_prompt(mems: Array[MemoryEntry]) -> String:
 	if mems.is_empty():
 		return "(no memories yet)"
 	var lines: PackedStringArray = []
 	for mem in mems:
 		var time_str := "%02d:%02d" % [int(mem.timestamp / 60.0) % 24, int(mem.timestamp) % 60]
-		lines.append("- [%s] %s" % [time_str, mem.description])
+		var emotion_tag := ""
+		if mem.emotion != "":
+			emotion_tag = " [%s]" % mem.emotion
+		lines.append("- [%s]%s %s" % [time_str, emotion_tag, mem.description])
 	return "\n".join(lines)
 
 
@@ -102,7 +142,15 @@ func _score_memory(mem: MemoryEntry, query_keywords: PackedStringArray, current_
 				overlap += 1
 		relevance = float(overlap) / float(query_keywords.size())
 
-	return recency + importance + relevance
+	# Emotional resonance: memories matching current emotional state score higher
+	var emotion_bonus := 0.0
+	if mem.emotion != "" and mem.decay_protected:
+		emotion_bonus = 0.2
+
+	# Sentiment weight: high-sentiment memories are more memorable
+	var sentiment_bonus := absf(mem.sentiment) * 0.15
+
+	return recency + importance + relevance + emotion_bonus + sentiment_bonus
 
 
 func _extract_keywords(text: String) -> PackedStringArray:
@@ -145,6 +193,8 @@ func _trigger_reflection() -> void:
 		"type": "object",
 		"properties": {
 			"reflection": {"type": "string"},
+			"emotion": {"type": "string"},
+			"narrative_thread": {"type": "string"},
 		},
 		"required": ["reflection"],
 	}
@@ -157,19 +207,69 @@ func _trigger_reflection() -> void:
 		func(success: bool, data: Dictionary, _error: String) -> void:
 			_is_reflecting = false
 			if success and data.has("reflection"):
-				add_reflection(str(data["reflection"]))
+				var reflection_text: String = str(data["reflection"])
+				add_reflection(reflection_text)
+				# Apply emotional metadata to the reflection
+				if data.has("emotion"):
+					memories[-1].emotion = str(data["emotion"])
+				if data.has("narrative_thread"):
+					memories[-1].narrative_thread = str(data["narrative_thread"])
 			else:
 				add_reflection("%s takes a moment to think about recent events." % _agent_name),
 		LLMManager.Priority.LOW,
 	)
 
 
+func _regenerate_life_summary() -> void:
+	_memory_count_since_summary = 0
+	if not LLMManager.is_available:
+		_regenerate_life_summary_sync()
+		return
+	# Collect key memories for summary
+	var key_memories: Array[MemoryEntry] = []
+	for mem in memories:
+		if mem.importance >= 5.0 or mem.type == MemoryEntry.MemoryType.REFLECTION or mem.decay_protected:
+			key_memories.append(mem)
+	if key_memories.is_empty():
+		return
+	# Trim to last 20 key memories
+	if key_memories.size() > 20:
+		key_memories = key_memories.slice(key_memories.size() - 20)
+	var mems_text := format_memories_for_prompt(key_memories)
+	var prompt := "Summarize %s's life story so far in 2-3 sentences based on these key memories:\n%s" % [_agent_name, mems_text]
+	var format_schema := {
+		"type": "object",
+		"properties": {"summary": {"type": "string"}},
+		"required": ["summary"],
+	}
+	LLMManager.request_chat(
+		[{"role": "user", "content": prompt}],
+		format_schema,
+		func(success: bool, data: Dictionary, _error: String) -> void:
+			if success and data.has("summary"):
+				_life_summary = str(data["summary"]),
+		LLMManager.Priority.LOW,
+	)
+
+
+func _regenerate_life_summary_sync() -> void:
+	# Simple heuristic life summary
+	var reflections: Array[MemoryEntry] = []
+	for mem in memories:
+		if mem.type == MemoryEntry.MemoryType.REFLECTION:
+			reflections.append(mem)
+	if reflections.is_empty():
+		_life_summary = "%s is settling into office life." % _agent_name
+	else:
+		_life_summary = reflections[-1].description
+
+
 func _compact() -> void:
-	# Keep reflections and high-importance memories, drop oldest low-importance ones
+	# Keep reflections, high-importance, and decay-protected memories
 	var to_remove: Array[int] = []
 	for i in range(mini(COMPACTION_BATCH, memories.size())):
 		var mem := memories[i]
-		if mem.type != MemoryEntry.MemoryType.REFLECTION and mem.importance < 5.0:
+		if mem.type != MemoryEntry.MemoryType.REFLECTION and mem.importance < 5.0 and not mem.decay_protected:
 			to_remove.append(i)
 	# Remove in reverse order to preserve indices
 	to_remove.reverse()

@@ -10,6 +10,11 @@ var timestamp: float  # game_minutes when created
 var importance: float  # 1-10
 var keywords: PackedStringArray
 var related_agents: PackedStringArray
+# Phase 3: Deep memory fields
+var emotion: String = ""  # "happy", "sad", "angry", "grief", etc.
+var sentiment: float = 0.0  # -1 to 1
+var narrative_thread: String = ""  # e.g. "friendship_with_bob", "career_stress"
+var decay_protected: bool = false  # landmark memories survive compaction
 
 
 func _init(p_type: MemoryType = MemoryType.OBSERVATION, p_desc: String = "", p_time: float = 0.0, p_importance: float = 1.0) -> void:
@@ -37,4 +42,26 @@ func to_dict() -> Dictionary:
 		"description": description,
 		"timestamp": timestamp,
 		"importance": importance,
+		"emotion": emotion,
+		"sentiment": sentiment,
+		"narrative_thread": narrative_thread,
+		"decay_protected": decay_protected,
+		"related_agents": Array(related_agents),
 	}
+
+
+static func from_dict(data: Dictionary) -> MemoryEntry:
+	var entry := MemoryEntry.new(
+		data.get("type", MemoryType.OBSERVATION),
+		data.get("description", ""),
+		data.get("timestamp", 0.0),
+		data.get("importance", 1.0),
+	)
+	entry.emotion = data.get("emotion", "")
+	entry.sentiment = data.get("sentiment", 0.0)
+	entry.narrative_thread = data.get("narrative_thread", "")
+	entry.decay_protected = data.get("decay_protected", false)
+	var agents_raw: Array = data.get("related_agents", [])
+	for a in agents_raw:
+		entry.related_agents.append(str(a))
+	return entry

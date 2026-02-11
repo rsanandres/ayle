@@ -17,22 +17,28 @@ var state: AgentState.Type = AgentState.Type.IDLE:
 
 var current_target: Node2D = null
 var current_action: ActionType.Type = ActionType.Type.IDLE
+var health_state: HealthState = null
+var is_dead: bool = false
 var _interact_timer: float = 0.0
 var _interact_duration: float = 0.0
 var _sprite_frames: Array[ImageTexture] = []
 var _anim_timer: float = 0.0
 var _anim_frame: int = 0
+var _speech_tween: Tween = null
 
 @onready var needs: AgentNeeds = $AgentNeeds
 @onready var heuristic_brain: HeuristicBrain = $HeuristicBrain
 @onready var smart_brain: AgentBrain = $AgentBrain
 @onready var memory: AgentMemory = $AgentMemory
+@onready var relationships: AgentRelationships = $AgentRelationships
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var collision: CollisionShape2D = $CollisionShape2D
 @onready var nav_agent: NavigationAgent2D = $NavigationAgent2D
 @onready var interaction_area: Area2D = $InteractionArea
 @onready var label: Label = $NameLabel
 @onready var thought_bubble: Label = $ThoughtBubble
+@onready var speech_bubble: Label = $SpeechBubble
+@onready var emotion_indicator: Label = $EmotionIndicator
 
 
 func _ready() -> void:
@@ -47,6 +53,10 @@ func _ready() -> void:
 	nav_agent.target_desired_distance = 4.0
 	nav_agent.navigation_finished.connect(_on_navigation_finished)
 	memory.add_observation("%s arrives at the office and starts their day." % agent_name, 3.0)
+	# Initialize health
+	health_state = HealthState.new()
+	health_state.randomize_lifespan()
+	EventBus.day_changed.connect(_on_day_changed)
 
 
 func _exit_tree() -> void:
@@ -54,6 +64,8 @@ func _exit_tree() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_dead:
+		return
 	match state:
 		AgentState.Type.IDLE:
 			velocity = Vector2.ZERO
@@ -62,14 +74,80 @@ func _physics_process(delta: float) -> void:
 		AgentState.Type.INTERACTING:
 			_process_interacting(delta)
 	_animate(delta)
+	_update_emotion_indicator()
 
 
 func request_think() -> void:
+	if is_dead:
+		return
 	if state == AgentState.Type.INTERACTING or state == AgentState.Type.TALKING:
 		return
 	if state == AgentState.Type.WALKING:
 		return
 	_make_decision()
+
+
+func show_speech(text: String, duration: float = 3.0) -> void:
+	speech_bubble.text = text
+	speech_bubble.visible = true
+	if _speech_tween and _speech_tween.is_valid():
+		_speech_tween.kill()
+	speech_bubble.modulate.a = 1.0
+	_speech_tween = create_tween()
+	_speech_tween.tween_interval(duration)
+	_speech_tween.tween_property(speech_bubble, "modulate:a", 0.0, 0.5)
+	_speech_tween.tween_callback(func() -> void:
+		speech_bubble.visible = false
+		speech_bubble.modulate.a = 1.0
+	)
+
+
+func enter_talking_state() -> void:
+	state = AgentState.Type.TALKING
+	velocity = Vector2.ZERO
+
+
+func exit_talking_state() -> void:
+	if state == AgentState.Type.TALKING:
+		state = AgentState.Type.IDLE
+
+
+func die(cause: String = "natural causes") -> void:
+	if is_dead:
+		return
+	is_dead = true
+	state = AgentState.Type.IDLE
+	velocity = Vector2.ZERO
+	# Fade out sprite
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate:a", 0.0, 2.0)
+	tween.tween_property(label, "modulate:a", 0.0, 1.0)
+	tween.tween_callback(func() -> void:
+		EventBus.agent_died.emit(agent_name, cause)
+		EventBus.narrative_event.emit(
+			"%s has passed away (%s)." % [agent_name, cause],
+			[agent_name], 10.0
+		)
+		# Notify nearby agents for grief
+		var nearby := AgentManager.get_agents_near(global_position, 300.0, self)
+		for other in nearby:
+			if other.has_method("witness_death"):
+				other.witness_death(agent_name, cause)
+		queue_free()
+	)
+
+
+func witness_death(dead_name: String, cause: String) -> void:
+	memory.add_memory(
+		MemoryEntry.MemoryType.OBSERVATION,
+		"%s witnessed %s passing away from %s. This is deeply sad." % [agent_name, dead_name, cause],
+		10.0, PackedStringArray([dead_name])
+	)
+	memory.memories[-1].emotion = "grief"
+	memory.memories[-1].sentiment = -0.9
+	memory.memories[-1].decay_protected = true
+	# Grief affects social need
+	needs.restore(NeedType.Type.SOCIAL, -30.0)
 
 
 func _make_decision() -> void:
@@ -108,6 +186,13 @@ func _execute_decision(decision: Dictionary) -> void:
 				EventBus.agent_action_started.emit(self, current_action, current_target)
 			else:
 				state = AgentState.Type.IDLE
+		ActionType.Type.CONFESS_FEELINGS:
+			if current_target:
+				_navigate_to(current_target.global_position)
+				memory.add_action("%s gathers courage to confess feelings to %s." % [agent_name, current_target.agent_name], 7.0)
+				EventBus.agent_action_started.emit(self, current_action, current_target)
+			else:
+				state = AgentState.Type.IDLE
 
 
 func _start_wander() -> void:
@@ -143,14 +228,17 @@ func _on_navigation_finished() -> void:
 	if current_action == ActionType.Type.GO_TO_OBJECT and current_target:
 		_start_interaction()
 	elif current_action == ActionType.Type.TALK_TO_AGENT and current_target:
-		needs.restore(NeedType.Type.SOCIAL, 15.0)
-		memory.add_conversation(
-			"%s had a chat with %s." % [agent_name, current_target.agent_name],
-			current_target.agent_name, 5.0
-		)
-		EventBus.agent_action_completed.emit(self, current_action, current_target)
-		current_target = null
-		state = AgentState.Type.IDLE
+		# Trigger conversation system instead of simple social restore
+		if current_target and not current_target.is_dead:
+			ConversationManager.start_conversation(self, current_target)
+		else:
+			needs.restore(NeedType.Type.SOCIAL, 15.0)
+			state = AgentState.Type.IDLE
+	elif current_action == ActionType.Type.CONFESS_FEELINGS and current_target:
+		if current_target and not current_target.is_dead:
+			ConversationManager.start_confession(self, current_target)
+		else:
+			state = AgentState.Type.IDLE
 	else:
 		state = AgentState.Type.IDLE
 
@@ -258,6 +346,42 @@ func _animate(delta: float) -> void:
 		_anim_timer -= bob_speed
 		_anim_frame = (_anim_frame + 1) % _sprite_frames.size()
 		sprite.texture = _sprite_frames[_anim_frame]
+
+
+func _update_emotion_indicator() -> void:
+	if not health_state:
+		return
+	# Show emotional indicators based on state
+	var indicator_text := ""
+	if health_state.life_stage == LifeStage.Type.DYING:
+		indicator_text = "..."
+	elif state == AgentState.Type.TALKING:
+		indicator_text = "..."
+	elif needs.get_value(NeedType.Type.ENERGY) < 15.0:
+		indicator_text = "zzz"
+	elif needs.get_value(NeedType.Type.SOCIAL) < 15.0:
+		indicator_text = "..."
+
+	if indicator_text != "":
+		emotion_indicator.text = indicator_text
+		emotion_indicator.visible = true
+	else:
+		emotion_indicator.visible = false
+
+
+func _on_day_changed(day: int) -> void:
+	if is_dead or not health_state:
+		return
+	health_state.advance_day()
+	# Check for death
+	if health_state.health <= 0.0 or health_state.life_stage == LifeStage.Type.DEAD:
+		die("old age")
+	# Health affects energy decay
+	if health_state.life_stage == LifeStage.Type.SENIOR:
+		needs.set_decay_rate(NeedType.Type.ENERGY, Config.NEED_DECAY_BASE.get(NeedType.Type.ENERGY, 0.15) * 1.5)
+	if not health_state.conditions.is_empty():
+		for condition in health_state.conditions:
+			EventBus.agent_sick.emit(agent_name, condition)
 
 
 func _on_input_event(viewport: Node, event: InputEvent, _shape_idx: int) -> void:

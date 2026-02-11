@@ -7,6 +7,7 @@ const SPEED_LABELS := ["Paused", "1x", "2x", "3x"]
 var game_minutes: float = 480.0  # Start at 8:00 AM (8 * 60)
 var speed_index: int = 1
 var _accumulator: float = 0.0
+var _last_day: int = 1
 
 var is_paused: bool:
 	get: return speed_index == 0
@@ -36,6 +37,11 @@ func _process(delta: float) -> void:
 		game_minutes += ticks
 		_accumulator -= ticks
 		EventBus.time_tick.emit(game_minutes)
+		# Check for day change
+		var current_day := day
+		if current_day != _last_day:
+			_last_day = current_day
+			EventBus.day_changed.emit(current_day)
 
 
 func set_speed(index: int) -> void:

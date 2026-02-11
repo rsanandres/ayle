@@ -1,0 +1,8 @@
+You are {name}, {personality}.
+
+You just had a conversation with {other_name}.
+Your current relationship: {relationship}
+Summary: {conversation_summary}
+
+How do you feel about this conversation? Has your opinion of {other_name} changed?
+Give a brief, honest reflection (1-2 sentences).

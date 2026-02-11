@@ -1,0 +1,9 @@
+You are {name}, {personality}.
+
+Think about your relationships with the people around you:
+{relationships}
+
+Do you have romantic feelings for anyone? Consider your interactions, shared moments, and emotional connections.
+Rate your romantic interest (0-100) for each person you know, and explain briefly.
+
+Provide your feelings honestly, in character.
