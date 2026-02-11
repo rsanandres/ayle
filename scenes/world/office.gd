@@ -1,5 +1,5 @@
 extends Node2D
-## The office world. Draws pixel art floor with warm cozy palette.
+## The office world. Clean white room with subtle details.
 
 @onready var objects_container: Node2D = $Objects
 @onready var agents_container: Node2D = $Agents
@@ -30,42 +30,19 @@ func _collect_objects() -> void:
 func _draw() -> void:
 	var floor_rect := Rect2(_m, _m, _w, _h)
 
-	# Main floor — dark warm tone with slight transparency
-	draw_rect(floor_rect, Color(Palette.DARK_GRAY, 0.92))
+	# Clean white floor
+	draw_rect(floor_rect, Color(0.96, 0.96, 0.97, 0.95))
 
-	# Floor planks (horizontal lines, wood feel)
-	for y in range(int(_m), int(_m + _h), 16):
-		draw_line(
-			Vector2(_m, y), Vector2(_m + _w, y),
-			Color(Palette.WOOD_DARK, 0.15), 1.0
-		)
+	# Subtle tile grid
+	var grid_color := Color(0.88, 0.88, 0.9, 0.4)
+	for x in range(int(_m), int(_m + _w) + 1, 16):
+		draw_line(Vector2(x, _m), Vector2(x, _m + _h), grid_color, 1.0)
+	for y in range(int(_m), int(_m + _h) + 1, 16):
+		draw_line(Vector2(_m, y), Vector2(_m + _w, y), grid_color, 1.0)
 
-	# Subtle vertical plank offsets every other row
-	var row := 0
-	for y in range(int(_m), int(_m + _h), 16):
-		var offset := 8 if row % 2 == 1 else 0
-		for x in range(int(_m) + offset, int(_m + _w), 32):
-			draw_line(
-				Vector2(x, y), Vector2(x, y + 16),
-				Color(Palette.WOOD_DARK, 0.1), 1.0
-			)
-		row += 1
+	# Thin border
+	draw_rect(floor_rect, Color(0.75, 0.75, 0.78, 0.8), false, 1.0)
 
-	# Wall — top
-	draw_rect(Rect2(_m, _m, _w, 3), Color(Palette.WOOD_MID, 0.9))
-	draw_line(Vector2(_m, _m + 3), Vector2(_m + _w, _m + 3), Color(Palette.WOOD_DARK, 0.6), 1.0)
-
-	# Wall — left
-	draw_rect(Rect2(_m, _m, 3, _h), Color(Palette.WOOD_MID, 0.9))
-
-	# Baseboard — bottom
-	draw_rect(Rect2(_m, _m + _h - 2, _w, 2), Color(Palette.WOOD_DARK, 0.5))
-
-	# Border outline
-	draw_rect(floor_rect, Color(Palette.OUTLINE, 0.8), false, 1.0)
-
-	# Warm glow in center (ambient light spot)
-	var center := Vector2(_m + _w / 2, _m + _h / 2)
-	for r in range(60, 0, -5):
-		var alpha := 0.02 * (1.0 - float(r) / 60.0)
-		draw_circle(center, r, Color(Palette.WARM_YELLOW, alpha))
+	# Soft shadow along bottom and right edges (depth)
+	draw_line(Vector2(_m, _m + _h), Vector2(_m + _w, _m + _h), Color(0.7, 0.7, 0.72, 0.5), 2.0)
+	draw_line(Vector2(_m + _w, _m), Vector2(_m + _w, _m + _h), Color(0.7, 0.7, 0.72, 0.5), 2.0)
