@@ -37,43 +37,4 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "LLM: ..."
 
-[node name="Tooltip" type="PanelContainer" parent="."]
-visible = false
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -180.0
-offset_top = 10.0
-offset_right = -10.0
-offset_bottom = 180.0
-grow_horizontal = 0
-
-[node name="VBox" type="VBoxContainer" parent="Tooltip"]
-layout_mode = 2
-
-[node name="AgentName" type="Label" parent="Tooltip/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-autowrap_mode = 2
-text = "Agent"
-
-[node name="StateLabel" type="Label" parent="Tooltip/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-theme_override_colors/font_color = Color(0.7, 0.8, 0.7, 1)
-text = "Idle"
-
-[node name="ThoughtLabel" type="Label" parent="Tooltip/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 9
-theme_override_colors/font_color = Color(0.7, 0.7, 0.9, 1)
-autowrap_mode = 2
-text = ""
-
-[node name="Sep" type="HSeparator" parent="Tooltip/VBox"]
-layout_mode = 2
-
-[node name="NeedsContainer" type="VBoxContainer" parent="Tooltip/VBox"]
-layout_mode = 2
-
 [node name="ContextMenu" type="PopupMenu" parent="."]

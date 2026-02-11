@@ -20,6 +20,41 @@ func get_all_objects() -> Array[InteractableObject]:
 	return _all_objects
 
 
+func add_object(object: InteractableObject, pos: Vector2) -> void:
+	object.position = _snap_to_grid(pos)
+	objects_container.add_child(object)
+	_all_objects.append(object)
+	EventBus.object_placed.emit(object, object.position)
+	EventBus.narrative_event.emit(
+		"A new %s appeared in the office." % object.display_name,
+		[], 3.0
+	)
+	queue_redraw()
+
+
+func remove_object(object: InteractableObject) -> void:
+	if object in _all_objects:
+		_all_objects.erase(object)
+		EventBus.object_removed.emit(object)
+		EventBus.narrative_event.emit(
+			"The %s was removed from the office." % object.display_name,
+			[], 3.0
+		)
+		object.queue_free()
+		queue_redraw()
+
+
+func get_bounds() -> Rect2:
+	return Rect2(_m, _m, _w, _h)
+
+
+func _snap_to_grid(pos: Vector2) -> Vector2:
+	return Vector2(
+		snappedi(int(pos.x), Config.TILE_SIZE),
+		snappedi(int(pos.y), Config.TILE_SIZE),
+	)
+
+
 func _collect_objects() -> void:
 	_all_objects.clear()
 	for child in objects_container.get_children():

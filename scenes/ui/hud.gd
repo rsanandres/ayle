@@ -1,29 +1,26 @@
 extends CanvasLayer
 ## Minimal desktop HUD: status bar, agent tooltip on hover/click, right-click menu.
+## Integrates god mode toolbar, narrative log, relationship web, agent inspector.
 
 @onready var status_bar: HBoxContainer = $StatusBar
 @onready var time_label: Label = $StatusBar/TimeLabel
 @onready var speed_label: Label = $StatusBar/SpeedLabel
 @onready var llm_label: Label = $StatusBar/LLMLabel
-@onready var tooltip: PanelContainer = $Tooltip
-@onready var tooltip_name: Label = $Tooltip/VBox/AgentName
-@onready var tooltip_state: Label = $Tooltip/VBox/StateLabel
-@onready var tooltip_thought: Label = $Tooltip/VBox/ThoughtLabel
-@onready var tooltip_needs: VBoxContainer = $Tooltip/VBox/NeedsContainer
 @onready var context_menu: PopupMenu = $ContextMenu
 
 var _selected_agent: Node2D = null
-var _need_bars: Dictionary = {}
+var _god_mode: bool = false
+var _god_toolbar: GodToolbar
+var _agent_inspector: AgentInspector
+var _narrative_log: NarrativeLog
+var _relationship_web: RelationshipWeb
 
 
 func _ready() -> void:
-	tooltip.visible = false
 	EventBus.time_tick.connect(_on_time_tick)
 	EventBus.time_speed_changed.connect(_on_speed_changed)
 	EventBus.agent_selected.connect(_on_agent_selected)
 	EventBus.agent_deselected.connect(_on_agent_deselected)
-	EventBus.agent_state_changed.connect(_on_agent_state_changed)
-	EventBus.agent_need_changed.connect(_on_agent_need_changed)
 	LLMManager.ollama_status_changed.connect(func(_a: bool) -> void: _update_llm_label())
 	LLMManager.active_backend_changed.connect(func(_b: String) -> void: _update_llm_label())
 	context_menu.id_pressed.connect(_on_context_menu)
@@ -31,11 +28,51 @@ func _ready() -> void:
 	_update_speed()
 	_update_llm_label()
 
+	# Create god mode toolbar
+	_god_toolbar = GodToolbar.new()
+	add_child(_god_toolbar)
+
+	# Create agent inspector (right side)
+	_agent_inspector = AgentInspector.new()
+	_agent_inspector.offset_left = -180
+	_agent_inspector.offset_top = 10
+	_agent_inspector.offset_right = -10
+	_agent_inspector.offset_bottom = 280
+	_agent_inspector.anchors_preset = Control.PRESET_TOP_RIGHT
+	_agent_inspector.anchor_left = 1.0
+	_agent_inspector.anchor_right = 1.0
+	_agent_inspector.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	add_child(_agent_inspector)
+
+	# Create narrative log (bottom-left)
+	_narrative_log = NarrativeLog.new()
+	_narrative_log.offset_left = 10
+	_narrative_log.offset_top = -160
+	_narrative_log.offset_right = 210
+	_narrative_log.offset_bottom = -25
+	_narrative_log.anchors_preset = Control.PRESET_BOTTOM_LEFT
+	_narrative_log.anchor_top = 1.0
+	_narrative_log.anchor_bottom = 1.0
+	_narrative_log.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	add_child(_narrative_log)
+
+	# Create relationship web (center overlay)
+	_relationship_web = RelationshipWeb.new()
+	_relationship_web.offset_left = 100
+	_relationship_web.offset_top = 30
+	_relationship_web.offset_right = 380
+	_relationship_web.offset_bottom = 270
+	add_child(_relationship_web)
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		_show_context_menu(event.global_position)
 		get_viewport().set_input_as_handled()
+	elif event is InputEventKey and event.pressed:
+		if event.keycode == KEY_TAB:
+			_toggle_god_mode()
+			get_viewport().set_input_as_handled()
 
 
 func _on_time_tick(_gm: float) -> void:
@@ -64,73 +101,15 @@ func _update_llm_label() -> void:
 
 func _on_agent_selected(agent: Node2D) -> void:
 	_selected_agent = agent
-	tooltip.visible = true
-	tooltip_name.text = agent.agent_name
-	if agent.personality:
-		tooltip_name.text += " — " + agent.personality.get_personality_summary()
-	_update_state_label()
-	_update_thought()
-	_rebuild_need_bars()
 
 
 func _on_agent_deselected() -> void:
 	_selected_agent = null
-	tooltip.visible = false
 
 
-func _on_agent_state_changed(agent: Node2D, _old: AgentState.Type, _new: AgentState.Type) -> void:
-	if agent == _selected_agent:
-		_update_state_label()
-
-
-func _on_agent_need_changed(agent: Node2D, need: NeedType.Type, value: float) -> void:
-	if agent == _selected_agent and _need_bars.has(need):
-		_need_bars[need].value = value
-
-
-func _update_state_label() -> void:
-	if not _selected_agent:
-		return
-	var names := ["Idle", "Deciding", "Walking", "Interacting", "Talking"]
-	var idx: int = _selected_agent.state
-	tooltip_state.text = names[idx] if idx < names.size() else "?"
-	if _selected_agent.current_target and idx == AgentState.Type.INTERACTING:
-		tooltip_state.text += " (%s)" % _selected_agent.current_target.display_name
-
-
-func _update_thought() -> void:
-	if not _selected_agent:
-		return
-	var recent: Array[MemoryEntry] = _selected_agent.memory.get_recent(1)
-	if not recent.is_empty():
-		tooltip_thought.text = recent[0].description
-	else:
-		tooltip_thought.text = ""
-
-
-func _rebuild_need_bars() -> void:
-	for child in tooltip_needs.get_children():
-		child.queue_free()
-	_need_bars.clear()
-	if not _selected_agent:
-		return
-	var data: Dictionary = _selected_agent.needs.get_all_values()
-	for need in NeedType.get_all():
-		var hbox := HBoxContainer.new()
-		var lbl := Label.new()
-		lbl.text = NeedType.to_string_name(need).substr(0, 3).capitalize()
-		lbl.custom_minimum_size.x = 35
-		lbl.add_theme_font_size_override("font_size", 10)
-		var bar := ProgressBar.new()
-		bar.min_value = 0
-		bar.max_value = Config.NEED_MAX
-		bar.value = data.get(need, 0.0)
-		bar.custom_minimum_size.x = 80
-		bar.show_percentage = false
-		hbox.add_child(lbl)
-		hbox.add_child(bar)
-		tooltip_needs.add_child(hbox)
-		_need_bars[need] = bar
+func _toggle_god_mode() -> void:
+	_god_mode = not _god_mode
+	EventBus.god_mode_toggled.emit(_god_mode)
 
 
 func _show_context_menu(pos: Vector2) -> void:
@@ -139,7 +118,14 @@ func _show_context_menu(pos: Vector2) -> void:
 	context_menu.add_item("Speed Up", 1)
 	context_menu.add_item("Speed Down", 2)
 	context_menu.add_separator()
+	context_menu.add_item("Toggle God Mode (Tab)", 5)
+	context_menu.add_item("Narrative Log", 6)
+	context_menu.add_item("Relationship Web", 7)
+	context_menu.add_separator()
 	context_menu.add_item("Reconnect LLM", 3)
+	context_menu.add_item("Save Game", 10)
+	context_menu.add_item("Load Game", 11)
+	context_menu.add_item("Settings", 12)
 	context_menu.add_separator()
 	context_menu.add_item("Quit", 99)
 	context_menu.position = Vector2i(int(pos.x), int(pos.y))
@@ -152,4 +138,10 @@ func _on_context_menu(id: int) -> void:
 		1: TimeManager.increase_speed()
 		2: TimeManager.decrease_speed()
 		3: LLMManager.retry_health_check()
+		5: _toggle_god_mode()
+		6: _narrative_log.toggle()
+		7: _relationship_web.toggle()
+		10: SaveManager.save_game()
+		11: SaveManager.load_game()
+		12: pass  # Settings menu (Phase 10)
 		99: get_tree().quit()

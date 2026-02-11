@@ -18,6 +18,15 @@ func _ready() -> void:
 
 
 func decide(needs: AgentNeeds, nearby_objects: Array, nearby_agents: Array) -> Dictionary:
+	# If sick or very low health, prioritize rest
+	if _agent.health_state and not _agent.health_state.conditions.is_empty():
+		var couch := _find_available_object(nearby_objects, "couch")
+		if couch:
+			return {"action": ActionType.Type.GO_TO_OBJECT, "target": couch}
+		var bed := _find_available_object(nearby_objects, "bed")
+		if bed:
+			return {"action": ActionType.Type.GO_TO_OBJECT, "target": bed}
+
 	var urgent_need := needs.get_most_urgent()
 	var urgent_value := needs.get_value(urgent_need)
 
@@ -29,8 +38,13 @@ func decide(needs: AgentNeeds, nearby_objects: Array, nearby_agents: Array) -> D
 
 	# Social need: try to talk
 	if urgent_need == NeedType.Type.SOCIAL and not nearby_agents.is_empty():
-		var target_agent = nearby_agents[randi() % nearby_agents.size()]
-		return {"action": ActionType.Type.TALK_TO_AGENT, "target": target_agent}
+		var valid_agents: Array = []
+		for a in nearby_agents:
+			if not a.is_dead:
+				valid_agents.append(a)
+		if not valid_agents.is_empty():
+			var target_agent = valid_agents[randi() % valid_agents.size()]
+			return {"action": ActionType.Type.TALK_TO_AGENT, "target": target_agent}
 
 	# Find an object that satisfies the need
 	var desired_type: String = NEED_TO_OBJECT_TYPE.get(urgent_need, "")

@@ -14,6 +14,13 @@ func _ready() -> void:
 	win.always_on_top = true
 	win.mouse_passthrough = false
 	EventBus.game_ready.emit()
+	# Try loading save on startup
+	if SaveManager.has_save():
+		call_deferred("_try_load_save")
+
+
+func _try_load_save() -> void:
+	SaveManager.load_game()
 
 
 func _unhandled_input(event: InputEvent) -> void:
