@@ -36,8 +36,10 @@ Narrator="*res://autoloads/narrator.gd"
 
 [display]
 
-window/size/viewport_width=960
-window/size/viewport_height=640
+window/size/viewport_width=320
+window/size/viewport_height=214
+window/size/window_width_override=960
+window/size/window_height_override=640
 window/size/resizable=true
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"

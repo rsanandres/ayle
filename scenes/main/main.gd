@@ -50,8 +50,8 @@ func _setup_expanded_mode() -> void:
 		_camera.position = bounds.get_center()
 	else:
 		_camera.position = Vector2(480, 320)
-	_camera_zoom = 2.0  # Start zoomed in so agents are visible
-	_camera.zoom = Vector2(2.0, 2.0)
+	_camera_zoom = 1.0
+	_camera.zoom = Vector2.ONE
 
 
 func set_expanded_mode(enable: bool) -> void:

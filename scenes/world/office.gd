@@ -5,8 +5,8 @@ extends Node2D
 @onready var agents_container: Node2D = $Agents
 
 var _all_objects: Array[InteractableObject] = []
-var _w: float = Config.OFFICE_MAX_WIDTH
-var _h: float = Config.OFFICE_MAX_HEIGHT
+var _w: float = 300.0
+var _h: float = 200.0
 var _m: float = 10.0  # margin
 
 
