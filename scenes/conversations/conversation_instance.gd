@@ -55,7 +55,7 @@ func _request_next_line() -> void:
 	_waiting_for_response = true
 	var template_name := "confession" if (_is_confession and _current_turn < 2) else "conversation"
 	var history_text := _format_history()
-	var rel := speaker.relationships.get_relationship(listener.agent_name)
+	var rel: RelationshipEntry = speaker.relationships.get_relationship(listener.agent_name)
 
 	var prompt := PromptBuilder.build(template_name, {
 		"name": speaker.agent_name,
@@ -137,11 +137,11 @@ func _end_conversation() -> void:
 
 
 func _process_confession() -> void:
-	var rel_b := agent_b.relationships.get_relationship(agent_a.agent_name)
-	var accepted := rel_b.romantic_interest > 40.0
+	var rel_b: RelationshipEntry = agent_b.relationships.get_relationship(agent_a.agent_name)
+	var accepted: bool = rel_b.romantic_interest > 40.0
 	EventBus.confession_made.emit(agent_a.agent_name, agent_b.agent_name, accepted)
 	if accepted:
-		var rel_a := agent_a.relationships.get_relationship(agent_b.agent_name)
+		var rel_a: RelationshipEntry = agent_a.relationships.get_relationship(agent_b.agent_name)
 		rel_a.relationship_status = RelationshipEntry.Status.DATING
 		rel_b.relationship_status = RelationshipEntry.Status.DATING
 		rel_a.add_tag("partner")
@@ -170,7 +170,7 @@ func _process_confession() -> void:
 func _request_reflection(agent: Node2D, other: Node2D) -> void:
 	if not LLMManager.is_available:
 		return
-	var rel := agent.relationships.get_relationship(other.agent_name)
+	var rel: RelationshipEntry = agent.relationships.get_relationship(other.agent_name)
 	var prompt := PromptBuilder.build("conversation_reflect", {
 		"name": agent.agent_name,
 		"other_name": other.agent_name,
@@ -220,7 +220,7 @@ func _format_history() -> String:
 
 
 func _heuristic_line(speaker: Node2D, listener: Node2D) -> String:
-	var rel := speaker.relationships.get_relationship(listener.agent_name)
+	var rel: RelationshipEntry = speaker.relationships.get_relationship(listener.agent_name)
 	var lines: Array[String] = []
 	if _is_confession and _current_turn == 0:
 		lines = [

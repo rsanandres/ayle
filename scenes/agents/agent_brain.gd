@@ -55,10 +55,10 @@ func _request_llm_decision(needs: AgentNeeds, nearby_objects: Array, nearby_agen
 
 	var objects_text := _format_objects(nearby_objects)
 	var agents_text := _format_agents(nearby_agents)
-	var needs_values := needs.get_all_values()
-	var relevant_memories := _memory.retrieve(_build_context_query(needs, nearby_objects, nearby_agents), 7)
+	var needs_values: Dictionary = needs.get_all_values()
+	var relevant_memories: Array[MemoryEntry] = _memory.retrieve(_build_context_query(needs, nearby_objects, nearby_agents), 7)
 	var memories_text := _memory.format_memories_for_prompt(relevant_memories)
-	var relationships_text := _relationships.get_all_as_summary() if _relationships else "(none)"
+	var relationships_text: String = _relationships.get_all_as_summary() if _relationships else "(none)"
 
 	var system_prompt := PromptBuilder.build("system", {
 		"name": personality.agent_name if personality else _agent.agent_name,

@@ -74,19 +74,19 @@ func _serialize_world() -> Dictionary:
 		}
 
 		# Needs
-		var needs_values := agent.needs.get_all_values()
+		var needs_values: Dictionary = agent.needs.get_all_values()
 		for need in needs_values:
 			agent_data["needs"][NeedType.to_string_name(need)] = needs_values[need]
 
 		# Relationships
 		if agent.relationships:
-			var rels := agent.relationships.get_all_relationships()
+			var rels: Dictionary = agent.relationships.get_all_relationships()
 			for other_name in rels:
 				var rel: RelationshipEntry = rels[other_name]
 				agent_data["relationships"][other_name] = rel.to_dict()
 
 		# Memories (save last 50, compact)
-		var recent_mems := agent.memory.get_recent(50)
+		var recent_mems: Array[MemoryEntry] = agent.memory.get_recent(50)
 		for mem in recent_mems:
 			agent_data["memories"].append(mem.to_dict())
 

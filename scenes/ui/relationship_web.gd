@@ -47,7 +47,7 @@ func _draw() -> void:
 	for agent in agents:
 		if not agent.relationships:
 			continue
-		var rels := agent.relationships.get_all_relationships()
+		var rels: Dictionary = agent.relationships.get_all_relationships()
 		for other_name in rels:
 			if not positions.has(other_name):
 				continue

@@ -169,15 +169,15 @@ func _trigger_reflection() -> void:
 
 	if not LLMManager.is_available:
 		# Heuristic reflection
-		var recent := get_recent(5)
-		if not recent.is_empty():
+		var recent_heur: Array[MemoryEntry] = get_recent(5)
+		if not recent_heur.is_empty():
 			add_reflection("%s reflects on recent events and feels %s about how things are going." % [
 				_agent_name, ["good", "okay", "uncertain", "thoughtful"].pick_random()
 			])
 		_is_reflecting = false
 		return
 
-	var recent := get_recent(10)
+	var recent: Array[MemoryEntry] = get_recent(10)
 	var recent_text := format_memories_for_prompt(recent)
 	var agent := get_parent()
 	var profile: PersonalityProfile = agent.personality if agent and agent.get("personality") else null

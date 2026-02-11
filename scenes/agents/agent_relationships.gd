@@ -18,7 +18,7 @@ func get_relationship(agent_name: String) -> RelationshipEntry:
 
 
 func update_after_interaction(other_name: String, context: String, positive: bool = true) -> void:
-	var rel := get_relationship(other_name)
+	var rel: RelationshipEntry = get_relationship(other_name)
 	rel.interaction_count += 1
 	rel.last_interaction_time = TimeManager.game_minutes
 
@@ -44,7 +44,7 @@ func update_after_interaction(other_name: String, context: String, positive: boo
 
 
 func update_proximity(other_name: String, _delta: float) -> void:
-	var rel := get_relationship(other_name)
+	var rel: RelationshipEntry = get_relationship(other_name)
 	# Small familiarity gain from being nearby
 	rel.familiarity = clampf(rel.familiarity + 0.02, 0.0, 100.0)
 
