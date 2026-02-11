@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://ccouch001"]
+
+[ext_resource type="Script" path="res://scenes/objects/couch.gd" id="1_couch"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_couch"]
+size = Vector2(32, 16)
+
+[node name="Couch" type="StaticBody2D"]
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("1_couch")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_couch")

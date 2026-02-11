@@ -1,0 +1,13 @@
+extends InteractableObject
+## Coffee machine that restores hunger and gives a small energy boost.
+
+
+func _ready() -> void:
+	object_type = "coffee_machine"
+	display_name = "Coffee Machine"
+	interaction_duration = 5.0  # 5 game minutes
+	_need_effects = {
+		NeedType.Type.HUNGER: 25.0,
+		NeedType.Type.ENERGY: 10.0,
+	}
+	$Sprite2D.texture = ObjectSpriteSetup.create_coffee_machine_texture()

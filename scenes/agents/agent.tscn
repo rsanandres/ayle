@@ -1,0 +1,57 @@
+[gd_scene load_steps=6 format=3 uid="uid://cagent001"]
+
+[ext_resource type="Script" path="res://scenes/agents/agent.gd" id="1_agent"]
+[ext_resource type="Script" path="res://scenes/agents/agent_needs.gd" id="2_needs"]
+[ext_resource type="Script" path="res://scenes/agents/heuristic_brain.gd" id="3_brain"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_body"]
+radius = 6.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_interact"]
+radius = 200.0
+
+[node name="Agent" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_agent")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_body")
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
+path_desired_distance = 4.0
+target_desired_distance = 4.0
+
+[node name="InteractionArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 4
+
+[node name="InteractionShape" type="CollisionShape2D" parent="InteractionArea"]
+shape = SubResource("CircleShape2D_interact")
+
+[node name="AgentNeeds" type="Node" parent="."]
+script = ExtResource("2_needs")
+
+[node name="HeuristicBrain" type="Node" parent="."]
+script = ExtResource("3_brain")
+
+[node name="NameLabel" type="Label" parent="."]
+offset_left = -30.0
+offset_top = -24.0
+offset_right = 30.0
+offset_bottom = -12.0
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ClickArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 0
+input_pickable = true
+
+[node name="ClickShape" type="CollisionShape2D" parent="ClickArea"]
+shape = SubResource("CircleShape2D_body")
+
+[connection signal="input_event" from="ClickArea" to="." method="_on_input_event"]

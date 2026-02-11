@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3 uid="uid://cmain0001"]
+
+[ext_resource type="Script" path="res://scenes/main/main.gd" id="1_main"]
+[ext_resource type="PackedScene" uid="uid://coffice01" path="res://scenes/world/office.tscn" id="2_office"]
+[ext_resource type="PackedScene" uid="uid://chud00001" path="res://scenes/ui/hud.tscn" id="3_hud"]
+[ext_resource type="Script" path="res://scenes/ui/game_camera.gd" id="4_camera"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="Office" parent="." instance=ExtResource("2_office")]
+
+[node name="GameCamera" type="Camera2D" parent="."]
+position = Vector2(160, 120)
+script = ExtResource("4_camera")
+
+[node name="HUD" parent="." instance=ExtResource("3_hud")]

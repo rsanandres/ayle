@@ -1,0 +1,85 @@
+[gd_scene load_steps=2 format=3 uid="uid://chud00001"]
+
+[ext_resource type="Script" path="res://scenes/ui/hud.gd" id="1_hud"]
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_hud")
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 30.0
+grow_horizontal = 2
+
+[node name="DayLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Day 1"
+
+[node name="HSeparator" type="HSeparator" parent="TopBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(20, 0)
+
+[node name="TimeLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "08:00"
+
+[node name="HSeparator2" type="HSeparator" parent="TopBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(20, 0)
+
+[node name="SpeedLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "1x"
+
+[node name="HSeparator3" type="HSeparator" parent="TopBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(20, 0)
+
+[node name="PauseBtn" type="Button" parent="TopBar"]
+layout_mode = 2
+text = "Pause"
+
+[node name="SpeedUpBtn" type="Button" parent="TopBar"]
+layout_mode = 2
+text = "+"
+
+[node name="SpeedDownBtn" type="Button" parent="TopBar"]
+layout_mode = 2
+text = "-"
+
+[node name="AgentPanel" type="PanelContainer" parent="."]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -220.0
+offset_top = -200.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="VBox" type="VBoxContainer" parent="AgentPanel"]
+layout_mode = 2
+
+[node name="AgentName" type="Label" parent="AgentPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Agent Name"
+
+[node name="StateLabel" type="Label" parent="AgentPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Idle"
+
+[node name="HSeparator" type="HSeparator" parent="AgentPanel/VBox"]
+layout_mode = 2
+
+[node name="NeedsContainer" type="VBoxContainer" parent="AgentPanel/VBox"]
+layout_mode = 2
+
+[connection signal="pressed" from="TopBar/PauseBtn" to="." method="_on_pause_pressed"]
+[connection signal="pressed" from="TopBar/SpeedUpBtn" to="." method="_on_speed_up_pressed"]
+[connection signal="pressed" from="TopBar/SpeedDownBtn" to="." method="_on_speed_down_pressed"]

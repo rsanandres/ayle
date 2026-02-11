@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://cdesk001"]
+
+[ext_resource type="Script" path="res://scenes/objects/desk.gd" id="1_desk"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_desk"]
+size = Vector2(24, 16)
+
+[node name="Desk" type="StaticBody2D"]
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("1_desk")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_desk")

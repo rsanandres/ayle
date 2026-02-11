@@ -1,0 +1,107 @@
+[gd_scene load_steps=6 format=3 uid="uid://coffice01"]
+
+[ext_resource type="Script" path="res://scenes/world/office.gd" id="1_office"]
+[ext_resource type="Script" path="res://scenes/objects/desk.gd" id="2_desk"]
+[ext_resource type="Script" path="res://scenes/objects/coffee_machine.gd" id="3_coffee"]
+[ext_resource type="Script" path="res://scenes/objects/couch.gd" id="4_couch"]
+[ext_resource type="PackedScene" uid="uid://cagent001" path="res://scenes/agents/agent.tscn" id="5_agent"]
+
+[sub_resource type="NavigationPolygon" id="NavigationPolygon_1"]
+vertices = PackedVector2Array(8, 8, 312, 8, 312, 232, 8, 232)
+polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2, 3)])
+outlines = Array[PackedVector2Array]([PackedVector2Array(8, 8, 312, 8, 312, 232, 8, 232)])
+
+[sub_resource type="RectangleShape2D" id="desk_shape1"]
+size = Vector2(24, 16)
+
+[sub_resource type="RectangleShape2D" id="desk_shape2"]
+size = Vector2(24, 16)
+
+[sub_resource type="RectangleShape2D" id="desk_shape3"]
+size = Vector2(24, 16)
+
+[sub_resource type="RectangleShape2D" id="coffee_shape"]
+size = Vector2(14, 14)
+
+[sub_resource type="RectangleShape2D" id="couch_shape"]
+size = Vector2(32, 16)
+
+[node name="Office" type="Node2D"]
+script = ExtResource("1_office")
+
+[node name="NavigationRegion2D" type="NavigationRegion2D" parent="."]
+navigation_polygon = SubResource("NavigationPolygon_1")
+
+[node name="Objects" type="Node2D" parent="."]
+
+[node name="Desk1" type="StaticBody2D" parent="Objects"]
+position = Vector2(60, 60)
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("2_desk")
+
+[node name="Sprite2D" type="Sprite2D" parent="Objects/Desk1"]
+texture_filter = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Objects/Desk1"]
+shape = SubResource("desk_shape1")
+
+[node name="Desk2" type="StaticBody2D" parent="Objects"]
+position = Vector2(130, 60)
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("2_desk")
+
+[node name="Sprite2D" type="Sprite2D" parent="Objects/Desk2"]
+texture_filter = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Objects/Desk2"]
+shape = SubResource("desk_shape2")
+
+[node name="Desk3" type="StaticBody2D" parent="Objects"]
+position = Vector2(200, 60)
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("2_desk")
+
+[node name="Sprite2D" type="Sprite2D" parent="Objects/Desk3"]
+texture_filter = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Objects/Desk3"]
+shape = SubResource("desk_shape3")
+
+[node name="CoffeeMachine" type="StaticBody2D" parent="Objects"]
+position = Vector2(280, 40)
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("3_coffee")
+
+[node name="Sprite2D" type="Sprite2D" parent="Objects/CoffeeMachine"]
+texture_filter = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Objects/CoffeeMachine"]
+shape = SubResource("coffee_shape")
+
+[node name="Couch" type="StaticBody2D" parent="Objects"]
+position = Vector2(160, 200)
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("4_couch")
+
+[node name="Sprite2D" type="Sprite2D" parent="Objects/Couch"]
+texture_filter = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Objects/Couch"]
+shape = SubResource("couch_shape")
+
+[node name="Agents" type="Node2D" parent="."]
+
+[node name="Agent1" parent="Agents" instance=ExtResource("5_agent")]
+position = Vector2(80, 140)
+agent_name = "Alice"
+agent_color = Color(0.39, 0.58, 0.93, 1)
+
+[node name="Agent2" parent="Agents" instance=ExtResource("5_agent")]
+position = Vector2(200, 140)
+agent_name = "Bob"
+agent_color = Color(0.6, 0.8, 0.4, 1)
