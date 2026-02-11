@@ -1,8 +1,10 @@
 extends Node
 ## Autoload: serializes full world state to JSON. Auto-saves, manual save/load.
+## V2: procedural agents, groups, narrator data.
 
 const SAVE_PATH := "user://ayle_save.json"
 const AUTO_SAVE_INTERVAL_DAYS := 5
+const SAVE_VERSION := 2
 
 var _last_auto_save_day: int = 0
 
@@ -20,7 +22,7 @@ func save_game() -> bool:
 		return false
 	file.store_string(json_str)
 	file.close()
-	print("[SaveManager] Game saved to %s" % SAVE_PATH)
+	print("[SaveManager] Game saved to %s (v%d)" % [SAVE_PATH, SAVE_VERSION])
 	EventBus.narrative_event.emit("Game saved.", [], 1.0)
 	return true
 
@@ -36,7 +38,8 @@ func load_game() -> bool:
 		return false
 	var data: Dictionary = json.data
 	_deserialize_world(data)
-	print("[SaveManager] Game loaded from %s" % SAVE_PATH)
+	var version: int = data.get("version", 1)
+	print("[SaveManager] Game loaded from %s (v%d)" % [SAVE_PATH, version])
 	EventBus.narrative_event.emit("Game loaded.", [], 1.0)
 	return true
 
@@ -53,12 +56,15 @@ func _on_day_changed(day: int) -> void:
 
 func _serialize_world() -> Dictionary:
 	var data := {
-		"version": 1,
+		"version": SAVE_VERSION,
 		"game_time": TimeManager.game_minutes,
 		"speed_index": TimeManager.speed_index,
 		"agents": [],
 		"objects": [],
 		"narrative_log": [],
+		"groups": [],
+		"storylines": [],
+		"story_feed": [],
 	}
 
 	# Serialize agents
@@ -72,6 +78,10 @@ func _serialize_world() -> Dictionary:
 			"memories": [],
 			"health": null,
 		}
+
+		# For procedural agents, save full personality data
+		if agent.personality_file == "__procedural__" and agent.personality:
+			agent_data["personality_data"] = agent.personality.to_dict()
 
 		# Needs
 		var needs_values: Dictionary = agent.needs.get_all_values()
@@ -106,21 +116,50 @@ func _serialize_world() -> Dictionary:
 				"position": {"x": obj.position.x, "y": obj.position.y},
 			})
 
+	# Serialize groups (V2)
+	for group in GroupManager.groups:
+		data["groups"].append(group.to_dict())
+
+	# Serialize narrator storylines (V2)
+	for sl in Narrator.storylines:
+		data["storylines"].append(sl.to_dict())
+
+	# Serialize story feed (V2)
+	for entry in Narrator.feed:
+		data["story_feed"].append(entry.to_dict())
+
 	return data
 
 
 func _deserialize_world(data: Dictionary) -> void:
+	var version: int = data.get("version", 1)
+
 	# Restore game time
 	TimeManager.game_minutes = data.get("game_time", 480.0)
 	TimeManager.set_speed(data.get("speed_index", 1))
 
-	# Restore agents (update existing ones rather than respawning)
+	# Restore agents
 	var agent_datas: Array = data.get("agents", [])
+
+	# First pass: update existing agents (from scene) or spawn procedural ones
+	var restored_names: Array[String] = []
 	for agent_data in agent_datas:
 		var agent_name: String = agent_data.get("name", "")
+		var personality_file: String = agent_data.get("personality_file", "")
 		var agent := AgentManager.get_agent_by_name(agent_name)
+
+		if not agent and personality_file == "__procedural__":
+			# Spawn procedural agent from saved personality data
+			var personality_data: Dictionary = agent_data.get("personality_data", {})
+			if not personality_data.is_empty():
+				var pos_data: Dictionary = agent_data.get("position", {})
+				var pos := Vector2(pos_data.get("x", 100.0), pos_data.get("y", 100.0))
+				agent = AgentManager.spawn_procedural_agent(pos, personality_data)
+
 		if not agent:
-			continue  # Skip agents that don't exist in scene
+			continue  # Skip agents that don't exist and aren't procedural
+
+		restored_names.append(agent_name)
 
 		# Restore needs
 		var needs_data: Dictionary = agent_data.get("needs", {})
@@ -157,3 +196,30 @@ func _deserialize_world(data: Dictionary) -> void:
 		var health_data = agent_data.get("health", null)
 		if health_data is Dictionary:
 			agent.health_state = HealthState.from_dict(health_data)
+
+	# V2: Restore groups
+	if version >= 2:
+		var groups_data: Array = data.get("groups", [])
+		GroupManager.groups.clear()
+		for gd in groups_data:
+			var group := SocialGroup.from_dict(gd)
+			GroupManager.groups.append(group)
+
+		# Restore narrator storylines
+		var storylines_data: Array = data.get("storylines", [])
+		Narrator.storylines.clear()
+		for sld in storylines_data:
+			var sl := Storyline.from_dict(sld)
+			Narrator.storylines.append(sl)
+
+		# Restore story feed
+		var feed_data: Array = data.get("story_feed", [])
+		Narrator.feed.clear()
+		for fd in feed_data:
+			var entry := StoryEntry.from_dict(fd)
+			Narrator.feed.append(entry)
+
+	# Resize office if needed
+	var world := get_tree().get_first_node_in_group("world")
+	if world and world.has_method("resize_for_agents"):
+		world.resize_for_agents(AgentManager.agents.size())

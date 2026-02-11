@@ -7,6 +7,7 @@ extends CharacterBody2D
 @export var personality_file: String = ""
 
 var personality: PersonalityProfile = null
+var procedural_personality_data: Dictionary = {}  # Set before _ready for procedural agents
 var state: AgentState.Type = AgentState.Type.IDLE:
 	set(value):
 		if state == value:
@@ -288,25 +289,31 @@ func _get_nearby_objects() -> Array:
 
 
 func _load_personality() -> void:
-	if personality_file == "":
+	if personality_file == "__procedural__" and not procedural_personality_data.is_empty():
+		personality = PersonalityProfile.from_dict(procedural_personality_data)
+	elif personality_file != "" and personality_file != "__procedural__":
+		var path := "res://resources/personalities/%s.json" % personality_file
+		personality = PersonalityProfile.load_from_json(path)
+	else:
 		return
-	var path := "res://resources/personalities/%s.json" % personality_file
-	personality = PersonalityProfile.load_from_json(path)
 	if personality:
 		agent_name = personality.agent_name
 		agent_color = personality.color
-		# Apply personality-driven need decay rates
-		for need_key in personality.need_decay_multipliers:
-			var need_enum: NeedType.Type
-			match need_key:
-				"energy": need_enum = NeedType.Type.ENERGY
-				"hunger": need_enum = NeedType.Type.HUNGER
-				"social": need_enum = NeedType.Type.SOCIAL
-				"productivity": need_enum = NeedType.Type.PRODUCTIVITY
-				_: continue
-			var base_rate: float = Config.NEED_DECAY_BASE.get(need_enum, 0.1)
-			var multiplier: float = personality.need_decay_multipliers[need_key]
-			needs.set_decay_rate(need_enum, base_rate * multiplier)
+		_apply_personality_decay_rates()
+
+
+func _apply_personality_decay_rates() -> void:
+	for need_key in personality.need_decay_multipliers:
+		var need_enum: NeedType.Type
+		match need_key:
+			"energy": need_enum = NeedType.Type.ENERGY
+			"hunger": need_enum = NeedType.Type.HUNGER
+			"social": need_enum = NeedType.Type.SOCIAL
+			"productivity": need_enum = NeedType.Type.PRODUCTIVITY
+			_: continue
+		var base_rate: float = Config.NEED_DECAY_BASE.get(need_enum, 0.1)
+		var multiplier: float = personality.need_decay_multipliers[need_key]
+		needs.set_decay_rate(need_enum, base_rate * multiplier)
 
 
 func _on_thought(thought: String) -> void:
@@ -323,15 +330,19 @@ func _on_thought(thought: String) -> void:
 
 
 func _setup_sprite() -> void:
-	# Generate pixel art frames based on personality
+	# Named presets for original characters, generic color-based for procedural
 	match personality_file:
 		"alice": _sprite_frames = SpriteFactory.create_alice()
 		"bob": _sprite_frames = SpriteFactory.create_bob()
 		"clara": _sprite_frames = SpriteFactory.create_clara()
 		"dave": _sprite_frames = SpriteFactory.create_dave()
 		"emma": _sprite_frames = SpriteFactory.create_emma()
-		_: _sprite_frames = SpriteFactory.create_character(
-			Color(agent_color), Color(agent_color.darkened(0.3)), Palette.WOOD_DARK)
+		_:
+			if personality:
+				_sprite_frames = SpriteFactory.create_from_color(personality.color)
+			else:
+				_sprite_frames = SpriteFactory.create_character(
+					Color(agent_color), Color(agent_color.darkened(0.3)), Palette.WOOD_DARK)
 	if not _sprite_frames.is_empty():
 		sprite.texture = _sprite_frames[0]
 

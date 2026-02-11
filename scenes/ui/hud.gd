@@ -14,6 +14,7 @@ var _god_toolbar: GodToolbar
 var _agent_inspector: AgentInspector
 var _narrative_log: NarrativeLog
 var _relationship_web: RelationshipWeb
+var _story_feed: StoryFeedPanel
 
 
 func _ready() -> void:
@@ -64,6 +65,14 @@ func _ready() -> void:
 	_relationship_web.offset_bottom = 270
 	add_child(_relationship_web)
 
+	# Create story feed panel (center-right)
+	_story_feed = StoryFeedPanel.new()
+	_story_feed.offset_left = 250
+	_story_feed.offset_top = 30
+	_story_feed.offset_right = 470
+	_story_feed.offset_bottom = 270
+	add_child(_story_feed)
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -84,7 +93,11 @@ func _on_speed_changed(_i: int) -> void:
 
 
 func _update_time() -> void:
-	time_label.text = "Day %d  %s" % [TimeManager.day, TimeManager.time_string]
+	var agent_count := AgentManager.agents.size()
+	if agent_count > Config.MAX_AGENTS_DESKTOP:
+		time_label.text = "Day %d  %s  [%d agents]" % [TimeManager.day, TimeManager.time_string, agent_count]
+	else:
+		time_label.text = "Day %d  %s" % [TimeManager.day, TimeManager.time_string]
 
 
 func _update_speed() -> void:
@@ -120,7 +133,17 @@ func _show_context_menu(pos: Vector2) -> void:
 	context_menu.add_separator()
 	context_menu.add_item("Toggle God Mode (Tab)", 5)
 	context_menu.add_item("Narrative Log", 6)
+	context_menu.add_item("Story Feed", 8)
 	context_menu.add_item("Relationship Web", 7)
+	context_menu.add_separator()
+	# Expanded mode toggle
+	var main := get_tree().get_first_node_in_group("world")
+	var root := get_tree().current_scene
+	if root and root.has_method("set_expanded_mode"):
+		if root.expanded_mode:
+			context_menu.add_item("Shrink to Desktop Pet", 20)
+		else:
+			context_menu.add_item("Expand to Full Window", 20)
 	context_menu.add_separator()
 	context_menu.add_item("Reconnect LLM", 3)
 	context_menu.add_item("Save Game", 10)
@@ -141,7 +164,12 @@ func _on_context_menu(id: int) -> void:
 		5: _toggle_god_mode()
 		6: _narrative_log.toggle()
 		7: _relationship_web.toggle()
+		8: _story_feed.toggle()
 		10: SaveManager.save_game()
 		11: SaveManager.load_game()
-		12: pass  # Settings menu (Phase 10)
+		12: pass  # Settings menu
+		20:
+			var root := get_tree().current_scene
+			if root and root.has_method("set_expanded_mode"):
+				root.set_expanded_mode(not root.expanded_mode)
 		99: get_tree().quit()

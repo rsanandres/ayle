@@ -10,6 +10,8 @@ var _state_label: Label
 var _health_label: Label
 var _needs_container: VBoxContainer
 var _relationships_label: Label
+var _groups_label: Label
+var _storylines_label: Label
 var _memory_label: Label
 var _need_bars: Dictionary = {}
 
@@ -75,6 +77,28 @@ func _build_ui() -> void:
 	_relationships_label.add_theme_font_size_override("font_size", 8)
 	_relationships_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_vbox.add_child(_relationships_label)
+
+	_vbox.add_child(HSeparator.new())
+
+	var grp_title := Label.new()
+	grp_title.text = "Groups"
+	grp_title.add_theme_font_size_override("font_size", 9)
+	_vbox.add_child(grp_title)
+
+	_groups_label = Label.new()
+	_groups_label.add_theme_font_size_override("font_size", 8)
+	_groups_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_vbox.add_child(_groups_label)
+
+	var sl_title := Label.new()
+	sl_title.text = "Active Storylines"
+	sl_title.add_theme_font_size_override("font_size", 9)
+	_vbox.add_child(sl_title)
+
+	_storylines_label = Label.new()
+	_storylines_label.add_theme_font_size_override("font_size", 7)
+	_storylines_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_vbox.add_child(_storylines_label)
 
 	_vbox.add_child(HSeparator.new())
 
@@ -147,6 +171,14 @@ func _update_dynamic() -> void:
 	# Relationships
 	if _agent.relationships:
 		_relationships_label.text = _agent.relationships.get_all_as_summary()
+	# Groups
+	_groups_label.text = GroupManager.get_agent_group_names(_agent.agent_name)
+	# Storylines
+	var agent_stories: PackedStringArray = []
+	for sl in Narrator.storylines:
+		if _agent.agent_name in sl.involved_agents and sl.is_active:
+			agent_stories.append(sl.title)
+	_storylines_label.text = "\n".join(agent_stories) if not agent_stories.is_empty() else "(none)"
 	# Memory
 	var recent: Array[MemoryEntry] = _agent.memory.get_recent(5)
 	_memory_label.text = _agent.memory.format_memories_for_prompt(recent)

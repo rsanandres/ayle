@@ -44,8 +44,37 @@ func remove_object(object: InteractableObject) -> void:
 		queue_redraw()
 
 
+func resize_for_agents(count: int) -> void:
+	if count <= Config.MAX_AGENTS_DESKTOP:
+		_w = Config.DESKTOP_OFFICE_WIDTH
+		_h = Config.DESKTOP_OFFICE_HEIGHT
+	else:
+		var total_area: float = count * Config.OFFICE_AREA_PER_AGENT
+		# 1.5:1 aspect ratio
+		_w = clampf(sqrt(total_area * 1.5), Config.DESKTOP_OFFICE_WIDTH, Config.OFFICE_MAX_WIDTH)
+		_h = clampf(_w / 1.5, Config.DESKTOP_OFFICE_HEIGHT, Config.OFFICE_MAX_HEIGHT)
+	_rebuild_navigation()
+	queue_redraw()
+
+
 func get_bounds() -> Rect2:
 	return Rect2(_m, _m, _w, _h)
+
+
+func _rebuild_navigation() -> void:
+	# Rebuild NavigationRegion2D polygon to match new office bounds
+	var nav_region: NavigationRegion2D = get_node_or_null("NavigationRegion2D")
+	if nav_region:
+		var poly := NavigationPolygon.new()
+		var outline := PackedVector2Array([
+			Vector2(_m, _m),
+			Vector2(_m + _w, _m),
+			Vector2(_m + _w, _m + _h),
+			Vector2(_m, _m + _h),
+		])
+		poly.add_outline(outline)
+		poly.make_polygons_from_outlines()
+		nav_region.navigation_polygon = poly
 
 
 func _snap_to_grid(pos: Vector2) -> Vector2:

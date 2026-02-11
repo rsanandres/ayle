@@ -1,0 +1,15 @@
+Generate a unique personality for a new character in an office simulation game.
+
+Existing characters (avoid these names): {existing_names}
+
+Create a character with:
+- A unique first name (1 word, not from the existing list)
+- A brief description (1 sentence)
+- A short backstory (1-2 sentences)
+- A speech style (how they talk)
+- Big Five personality traits (each 0.0 to 1.0):
+  - openness, conscientiousness, extraversion, agreeableness, neuroticism
+- 1-2 personal goals
+- 1-2 quirks or habits
+
+Make the character feel real and distinct. Avoid stereotypes. Mix unexpected trait combinations.

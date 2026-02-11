@@ -22,6 +22,9 @@ Nearby people:
 Your relationships:
 {relationships}
 
+Your social groups:
+{groups}
+
 Your recent memories:
 {memories}
 

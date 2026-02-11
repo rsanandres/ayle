@@ -40,3 +40,22 @@ const DESKTOP_OFFICE_HEIGHT := 280
 # Conversation
 const CONVERSATION_TURNS := 4  # exchanges per conversation
 const CONVERSATION_LINE_DURATION := 3.0  # seconds to show each speech bubble
+
+# Expanded mode / scaling
+const OFFICE_AREA_PER_AGENT := 3000  # px^2 per agent for dynamic sizing
+const OFFICE_MAX_WIDTH := 960
+const OFFICE_MAX_HEIGHT := 640
+const MAX_AGENTS_EXPANDED := 50
+
+# Tiered think scheduling (Phase 2)
+const THINK_TIER_ACTIVE_INTERVAL := 3.0   # near camera/selected
+const THINK_TIER_NORMAL_INTERVAL := 8.0   # in viewport
+const THINK_TIER_BACKGROUND_INTERVAL := 20.0  # off-screen, heuristic-only
+const LLM_QUEUE_MAX := 16
+
+# Spatial grid
+const SPATIAL_GRID_CELL_SIZE := 64
+
+# Social groups
+const GROUP_MIN_SIZE := 3
+const GROUP_AFFINITY_THRESHOLD := 25.0

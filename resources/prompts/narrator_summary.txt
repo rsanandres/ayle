@@ -1,0 +1,14 @@
+You are narrating an office simulation. Summarize this storyline thread.
+
+Involved characters: {agents}
+Category: {category}
+
+Events so far:
+{events}
+
+Write:
+1. A catchy title (max 6 words)
+2. A brief narrative summary (2-3 sentences, engaging and dramatic)
+3. A drama rating from 1-10 (10 = most dramatic)
+
+Focus on the emotional arc and character dynamics. Be vivid but concise.

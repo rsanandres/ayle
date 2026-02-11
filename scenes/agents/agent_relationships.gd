@@ -4,6 +4,7 @@ extends Node
 
 var _relationships: Dictionary = {}
 var _agent: Node2D
+var _proximity_tick_count: int = 0
 
 
 func _ready() -> void:
@@ -135,7 +136,10 @@ func _update_tags(rel: RelationshipEntry) -> void:
 
 
 func _on_time_tick(_game_minutes: float) -> void:
-	# Update proximity-based familiarity for nearby agents
+	# Throttle proximity updates to every 5th tick (5x reduction)
+	_proximity_tick_count += 1
+	if _proximity_tick_count % 5 != 0:
+		return
 	var nearby := AgentManager.get_agents_near(_agent.global_position, 60.0, _agent)
 	for other in nearby:
 		update_proximity(other.agent_name, 1.0)

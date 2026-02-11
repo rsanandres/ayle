@@ -5,6 +5,7 @@ extends Node
 signal thought_generated(thought: String)
 
 var personality: PersonalityProfile
+var force_heuristic: bool = false  # Set by AgentManager for background agents
 var _agent: Node2D
 var _heuristic: HeuristicBrain
 var _memory: AgentMemory
@@ -40,10 +41,13 @@ func _ready() -> void:
 
 
 func decide(needs: AgentNeeds, nearby_objects: Array, nearby_agents: Array) -> Dictionary:
+	# Background agents always use heuristic for performance
+	if force_heuristic:
+		return _heuristic.decide(needs, nearby_objects, nearby_agents)
+
 	# If LLM is available and we're not already waiting, use it
-	if LLMManager.is_available and not _waiting_for_llm and LLMManager.get_queue_size() < 8:
+	if LLMManager.is_available and not _waiting_for_llm and LLMManager.get_queue_size() < Config.LLM_QUEUE_MAX:
 		_request_llm_decision(needs, nearby_objects, nearby_agents)
-		# Return idle while waiting — agent will get the real decision async
 		return {"action": ActionType.Type.IDLE, "waiting_for_llm": true}
 
 	# Fallback to heuristic
@@ -73,6 +77,9 @@ func _request_llm_decision(needs: AgentNeeds, nearby_objects: Array, nearby_agen
 	})
 
 	var health_val: float = needs_values.get(NeedType.Type.HEALTH, 100.0)
+	var groups_text := "(none)"
+	if GroupManager:
+		groups_text = GroupManager.get_agent_group_names(_agent.agent_name)
 	var user_prompt := PromptBuilder.build("decision", {
 		"name": personality.agent_name if personality else _agent.agent_name,
 		"description": personality.description if personality else "",
@@ -88,6 +95,7 @@ func _request_llm_decision(needs: AgentNeeds, nearby_objects: Array, nearby_agen
 		"objects": objects_text,
 		"agents": agents_text,
 		"relationships": relationships_text,
+		"groups": groups_text,
 		"memories": memories_text,
 	})
 

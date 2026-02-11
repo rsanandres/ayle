@@ -51,6 +51,15 @@ signal confession_made(confessor: String, target: String, accepted: bool)
 # Narrative signals
 signal narrative_event(text: String, agents: Array, importance: float)
 
+# Group signals
+signal group_formed(group: RefCounted)
+signal group_dissolved(group: RefCounted)
+signal group_rivalry_detected(group_a: RefCounted, group_b: RefCounted)
+
+# Narrator signals
+signal storyline_updated(storyline: RefCounted)
+signal narrator_insight(text: String)
+
 # Game signals
 signal game_ready()
 signal game_paused()

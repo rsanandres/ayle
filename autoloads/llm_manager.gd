@@ -28,17 +28,23 @@ var is_available: bool = false
 var active_backend: Dictionary = {}
 var active_backend_name: String = "none"
 
+const POOL_SIZE := 3
+
 var _queue: Array[Dictionary] = []
-var _processing: bool = false
-var _http: HTTPRequest
+var _pool: Array[HTTPRequest] = []
+var _pool_busy: Array[bool] = []
 var _health_timer: float = 0.0
 
 
 func _ready() -> void:
-	_http = HTTPRequest.new()
-	_http.timeout = TIMEOUT_SEC
-	add_child(_http)
-	_http.request_completed.connect(_on_request_completed)
+	# Create HTTP connection pool
+	for i in range(POOL_SIZE):
+		var http := HTTPRequest.new()
+		http.timeout = TIMEOUT_SEC
+		add_child(http)
+		http.request_completed.connect(_on_pool_request_completed.bind(i))
+		_pool.append(http)
+		_pool_busy.append(false)
 	_check_all_backends()
 
 
@@ -125,14 +131,19 @@ func _update_active_backend() -> void:
 
 
 func _process_next() -> void:
-	if _processing or _queue.is_empty():
+	if _queue.is_empty():
 		return
 	if not is_available:
 		while not _queue.is_empty():
 			var entry: Dictionary = _queue.pop_front()
 			entry["callback"].call(false, {}, "No LLM backend available")
 		return
-	_processing = true
+	# Find an idle pool member
+	var pool_idx := _get_idle_pool_index()
+	if pool_idx == -1:
+		return  # All busy, will retry when one completes
+	_pool_busy[pool_idx] = true
+	var http: HTTPRequest = _pool[pool_idx]
 	var entry: Dictionary = _queue.pop_front()
 	var body := {
 		"model": active_backend.get("model", "llama3.2:3b"),
@@ -149,32 +160,31 @@ func _process_next() -> void:
 	var json_body := JSON.stringify(body)
 	var headers := ["Content-Type: application/json"]
 	var url: String = active_backend.get("url", "http://localhost:11434")
-	_http.set_meta("current_callback", entry["callback"])
-	_http.set_meta("current_backend", active_backend_name)
-	_http.request(url + CHAT_ENDPOINT, headers, HTTPClient.METHOD_POST, json_body)
+	http.set_meta("current_callback", entry["callback"])
+	http.set_meta("current_backend", active_backend_name)
+	http.request(url + CHAT_ENDPOINT, headers, HTTPClient.METHOD_POST, json_body)
 
 
-func _on_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
-	var callback: Callable = _http.get_meta("current_callback")
-	var used_backend: String = _http.get_meta("current_backend")
-	_processing = false
+func _get_idle_pool_index() -> int:
+	for i in range(POOL_SIZE):
+		if not _pool_busy[i]:
+			return i
+	return -1
+
+
+func _on_pool_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, pool_idx: int) -> void:
+	var http: HTTPRequest = _pool[pool_idx]
+	_pool_busy[pool_idx] = false
+	var callback: Callable = http.get_meta("current_callback")
+	var used_backend: String = http.get_meta("current_backend")
 
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
 		var error_msg := "HTTP error on %s: result=%d, code=%d" % [used_backend, result, response_code]
-		# Mark this backend as down and re-check
 		for backend in backends:
 			if backend["name"] == used_backend:
 				backend["available"] = false
 		_update_active_backend()
-		# If another backend is now active, re-queue this request
-		if is_available and used_backend != active_backend_name:
-			# Re-submit to the new backend
-			var messages: Array = []
-			var format := {}
-			# Can't recover original request data, so just fail gracefully
-			callback.call(false, {}, error_msg)
-		else:
-			callback.call(false, {}, error_msg)
+		callback.call(false, {}, error_msg)
 		_process_next()
 		return
 

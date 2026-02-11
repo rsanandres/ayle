@@ -62,6 +62,55 @@ static func load_from_json(path: String) -> PersonalityProfile:
 	return profile
 
 
+func to_dict() -> Dictionary:
+	return {
+		"name": agent_name,
+		"description": description,
+		"backstory": backstory,
+		"speech_style": speech_style,
+		"color": [color.r, color.g, color.b],
+		"big_five": {
+			"openness": openness,
+			"conscientiousness": conscientiousness,
+			"extraversion": extraversion,
+			"agreeableness": agreeableness,
+			"neuroticism": neuroticism,
+		},
+		"goals": goals.duplicate(),
+		"quirks": quirks.duplicate(),
+		"need_decay_multipliers": need_decay_multipliers.duplicate(),
+	}
+
+
+static func from_dict(data: Dictionary) -> PersonalityProfile:
+	var profile := PersonalityProfile.new()
+	profile.agent_name = data.get("name", "Unknown")
+	profile.description = data.get("description", "")
+	profile.backstory = data.get("backstory", "")
+	profile.speech_style = data.get("speech_style", "")
+
+	var c: Array = data.get("color", [0.5, 0.5, 0.5])
+	profile.color = Color(c[0], c[1], c[2])
+
+	var big5: Dictionary = data.get("big_five", {})
+	profile.openness = big5.get("openness", 0.5)
+	profile.conscientiousness = big5.get("conscientiousness", 0.5)
+	profile.extraversion = big5.get("extraversion", 0.5)
+	profile.agreeableness = big5.get("agreeableness", 0.5)
+	profile.neuroticism = big5.get("neuroticism", 0.5)
+
+	var goals_raw: Array = data.get("goals", [])
+	for g in goals_raw:
+		profile.goals.append(str(g))
+
+	var quirks_raw: Array = data.get("quirks", [])
+	for q in quirks_raw:
+		profile.quirks.append(str(q))
+
+	profile.need_decay_multipliers = data.get("need_decay_multipliers", {})
+	return profile
+
+
 func get_personality_summary() -> String:
 	var traits: PackedStringArray = []
 	if openness > 0.7: traits.append("creative and curious")

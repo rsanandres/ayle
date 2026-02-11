@@ -1,0 +1,104 @@
+class_name StoryFeedPanel
+extends PanelContainer
+## UI panel showing ranked storylines from the Narrator.
+
+var _scroll: ScrollContainer
+var _vbox: VBoxContainer
+var _title: Label
+
+
+func _ready() -> void:
+	custom_minimum_size = Vector2(220, 180)
+	visible = false
+	_build_ui()
+	EventBus.storyline_updated.connect(func(_sl: RefCounted) -> void:
+		if visible:
+			_rebuild_display()
+	)
+
+
+func toggle() -> void:
+	visible = not visible
+	if visible:
+		_rebuild_display()
+
+
+func _build_ui() -> void:
+	_scroll = ScrollContainer.new()
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	add_child(_scroll)
+
+	var outer := VBoxContainer.new()
+	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(outer)
+
+	_title = Label.new()
+	_title.text = "Top Stories"
+	_title.add_theme_font_size_override("font_size", 10)
+	_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	outer.add_child(_title)
+
+	outer.add_child(HSeparator.new())
+
+	_vbox = VBoxContainer.new()
+	_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer.add_child(_vbox)
+
+
+func _rebuild_display() -> void:
+	for child in _vbox.get_children():
+		child.queue_free()
+
+	var top_stories: Array[Storyline] = Narrator.get_top_storylines(8)
+	if top_stories.is_empty():
+		var empty_lbl := Label.new()
+		empty_lbl.text = "No stories yet..."
+		empty_lbl.add_theme_font_size_override("font_size", 8)
+		empty_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		_vbox.add_child(empty_lbl)
+		return
+
+	for sl in top_stories:
+		var entry_box := VBoxContainer.new()
+
+		# Title + drama bar
+		var header := HBoxContainer.new()
+		var title_lbl := Label.new()
+		title_lbl.text = sl.title
+		title_lbl.add_theme_font_size_override("font_size", 8)
+		title_lbl.add_theme_color_override("font_color", _drama_color(sl.drama_score))
+		title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		title_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		header.add_child(title_lbl)
+
+		var drama_lbl := Label.new()
+		drama_lbl.text = "%.0f" % sl.drama_score
+		drama_lbl.add_theme_font_size_override("font_size", 7)
+		drama_lbl.add_theme_color_override("font_color", _drama_color(sl.drama_score))
+		header.add_child(drama_lbl)
+		entry_box.add_child(header)
+
+		# Summary or agents
+		var detail_lbl := Label.new()
+		if sl.summary != "":
+			detail_lbl.text = sl.summary
+		else:
+			detail_lbl.text = "Involving: %s" % ", ".join(sl.involved_agents)
+		detail_lbl.add_theme_font_size_override("font_size", 7)
+		detail_lbl.add_theme_color_override("font_color", Color(0.65, 0.65, 0.7))
+		detail_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		entry_box.add_child(detail_lbl)
+
+		entry_box.add_child(HSeparator.new())
+		_vbox.add_child(entry_box)
+
+
+func _drama_color(score: float) -> Color:
+	if score >= 8.0:
+		return Color(1.0, 0.4, 0.3)  # Hot red
+	elif score >= 5.0:
+		return Color(1.0, 0.75, 0.3)  # Warm orange
+	elif score >= 3.0:
+		return Color(0.8, 0.8, 0.5)  # Mild yellow
+	else:
+		return Color(0.6, 0.6, 0.7)  # Cool gray

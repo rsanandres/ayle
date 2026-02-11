@@ -1,0 +1,7 @@
+A social group has formed in the office simulation. Generate a creative name for this group.
+
+Group type: {group_type}
+Members: {members}
+Average affinity: {affinity}
+
+Give a short, catchy group name (2-4 words). Be creative and playful.

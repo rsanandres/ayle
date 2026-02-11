@@ -343,6 +343,15 @@ static func create_bed_sprite() -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 
+static func create_from_color(primary: Color) -> Array[ImageTexture]:
+	## Generate a character sprite from a primary color. Secondary = darkened, hair from natural tones.
+	var secondary: Color = primary.darkened(0.3)
+	# Pick hair from natural tones based on hue hash
+	var hair_idx := int(primary.h * 137.508) % PersonalityGenerator.HAIR_TONES.size()
+	var hair_color: Color = PersonalityGenerator.HAIR_TONES[hair_idx]
+	return create_character(primary, secondary, hair_color)
+
+
 # --- Character presets for each personality ---
 
 static func create_alice() -> Array[ImageTexture]:
