@@ -36,11 +36,9 @@ Narrator="*res://autoloads/narrator.gd"
 
 [display]
 
-window/size/viewport_width=480
-window/size/viewport_height=320
-window/size/borderless=true
-window/size/always_on_top=true
-window/size/transparent=true
+window/size/viewport_width=960
+window/size/viewport_height=640
+window/size/resizable=true
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/per_pixel_transparency/allowed=true
@@ -89,4 +87,4 @@ speed_down={
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
-viewport/transparent_background=true
+viewport/transparent_background=false

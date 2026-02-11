@@ -1,31 +1,27 @@
 extends Node2D
-## Root scene: desktop mode with transparent window, draggable, right-click menu.
-## Supports expanded mode with camera pan/zoom for larger populations.
+## Root scene: starts in expanded mode (960x640) by default.
+## Can shrink to desktop pet mode (480x320 transparent) via context menu.
 
 var _dragging: bool = false
 var _drag_offset: Vector2 = Vector2.ZERO
-var expanded_mode: bool = false
+var expanded_mode: bool = true  # Default to expanded
 var _camera: Camera2D = null
 var _camera_zoom: float = 1.0
 var _camera_panning: bool = false
-var _camera_pan_start: Vector2 = Vector2.ZERO
 var _follow_agent: Node2D = null
 
 
 func _ready() -> void:
-	# Enable transparent background
-	get_viewport().transparent_bg = true
 	var win := get_window()
-	win.transparent = true
-	win.borderless = true
-	win.always_on_top = true
 	win.mouse_passthrough = false
 
-	# Create camera for expanded mode
+	# Create camera
 	_camera = Camera2D.new()
-	_camera.enabled = false
 	_camera.zoom = Vector2.ONE
 	add_child(_camera)
+
+	# Start in expanded mode
+	_setup_expanded_mode()
 
 	EventBus.game_ready.emit()
 	EventBus.agent_selected.connect(_on_agent_selected_camera)
@@ -39,6 +35,25 @@ func _try_load_save() -> void:
 	SaveManager.load_game()
 
 
+func _setup_expanded_mode() -> void:
+	var win := get_window()
+	win.transparent = false
+	get_viewport().transparent_bg = false
+	win.borderless = false
+	win.always_on_top = false
+	win.min_size = Vector2i(480, 320)
+	_camera.enabled = true
+	# Center camera on the office
+	var world := get_tree().get_first_node_in_group("world")
+	if world and world.has_method("get_bounds"):
+		var bounds: Rect2 = world.get_bounds()
+		_camera.position = bounds.get_center()
+	else:
+		_camera.position = Vector2(480, 320)
+	_camera_zoom = 1.0
+	_camera.zoom = Vector2.ONE
+
+
 func set_expanded_mode(enable: bool) -> void:
 	if expanded_mode == enable:
 		return
@@ -49,14 +64,14 @@ func set_expanded_mode(enable: bool) -> void:
 		get_viewport().transparent_bg = false
 		win.borderless = false
 		win.always_on_top = false
-		win.size = Vector2i(Config.OFFICE_MAX_WIDTH, Config.OFFICE_MAX_HEIGHT)
+		win.size = Vector2i(960, 640)
 		win.min_size = Vector2i(480, 320)
 		_camera.enabled = true
-		_camera.position = Vector2(Config.OFFICE_MAX_WIDTH / 2.0, Config.OFFICE_MAX_HEIGHT / 2.0)
+		var world := get_tree().get_first_node_in_group("world")
+		if world and world.has_method("get_bounds"):
+			_camera.position = world.get_bounds().get_center()
 		_camera_zoom = 1.0
 		_camera.zoom = Vector2.ONE
-		# Resize office for current agent count
-		var world := get_tree().get_first_node_in_group("world")
 		if world and world.has_method("resize_for_agents"):
 			world.resize_for_agents(AgentManager.agents.size())
 	else:
@@ -67,7 +82,6 @@ func set_expanded_mode(enable: bool) -> void:
 		win.size = Vector2i(Config.DESKTOP_WINDOW_WIDTH, Config.DESKTOP_WINDOW_HEIGHT)
 		_camera.enabled = false
 		_follow_agent = null
-		# Reset office to desktop size
 		var world := get_tree().get_first_node_in_group("world")
 		if world and world.has_method("resize_for_agents"):
 			world.resize_for_agents(Config.MAX_AGENTS_DESKTOP)
