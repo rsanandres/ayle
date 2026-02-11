@@ -17,7 +17,7 @@ var backends: Array[Dictionary] = [
 	{
 		"name": "local",
 		"url": "http://localhost:11434",
-		"model": "smollm2:1.7b",  # ~1GB RAM, fast, good enough for personality
+		"model": "llama3.1:8b",  # local model
 		"available": false,
 		"temperature": 0.7,
 		"num_predict": 150,
