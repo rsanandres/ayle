@@ -3,7 +3,7 @@ extends Node
 ## Fallback decision-making: picks actions based on most urgent need.
 
 # Maps need types to preferred object types for fulfillment
-const NEED_TO_OBJECT_TYPE := {
+var NEED_TO_OBJECT_TYPE := {
 	NeedType.Type.ENERGY: "couch",
 	NeedType.Type.HUNGER: "coffee_machine",
 	NeedType.Type.SOCIAL: "",  # handled via talk_to_agent

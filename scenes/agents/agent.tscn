@@ -1,8 +1,10 @@
-[gd_scene load_steps=6 format=3 uid="uid://cagent001"]
+[gd_scene load_steps=8 format=3 uid="uid://cagent001"]
 
 [ext_resource type="Script" path="res://scenes/agents/agent.gd" id="1_agent"]
 [ext_resource type="Script" path="res://scenes/agents/agent_needs.gd" id="2_needs"]
 [ext_resource type="Script" path="res://scenes/agents/heuristic_brain.gd" id="3_brain"]
+[ext_resource type="Script" path="res://scenes/agents/agent_brain.gd" id="4_smart"]
+[ext_resource type="Script" path="res://scenes/agents/agent_memory.gd" id="5_memory"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 6.0
@@ -38,13 +40,39 @@ script = ExtResource("2_needs")
 [node name="HeuristicBrain" type="Node" parent="."]
 script = ExtResource("3_brain")
 
+[node name="AgentBrain" type="Node" parent="."]
+script = ExtResource("4_smart")
+
+[node name="AgentMemory" type="Node" parent="."]
+script = ExtResource("5_memory")
+
 [node name="NameLabel" type="Label" parent="."]
-offset_left = -30.0
-offset_top = -24.0
-offset_right = 30.0
-offset_bottom = -12.0
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = -10.0
+theme_override_font_sizes/font_size = 8
+theme_override_colors/font_color = Color(0.92, 0.88, 0.8, 0.9)
+theme_override_colors/font_shadow_color = Color(0.1, 0.1, 0.13, 0.7)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="ThoughtBubble" type="Label" parent="."]
+visible = false
+offset_left = -50.0
+offset_top = -36.0
+offset_right = 50.0
+offset_bottom = -22.0
+theme_override_font_sizes/font_size = 7
+theme_override_colors/font_color = Color(0.8, 0.8, 0.95, 0.85)
+theme_override_colors/font_shadow_color = Color(0.1, 0.1, 0.13, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="ClickArea" type="Area2D" parent="."]
 collision_layer = 0

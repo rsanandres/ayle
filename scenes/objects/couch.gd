@@ -10,4 +10,4 @@ func _ready() -> void:
 		NeedType.Type.ENERGY: 40.0,
 		NeedType.Type.PRODUCTIVITY: -3.0,
 	}
-	$Sprite2D.texture = ObjectSpriteSetup.create_couch_texture()
+	$Sprite2D.texture = SpriteFactory.create_couch_sprite()

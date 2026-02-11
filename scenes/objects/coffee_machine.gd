@@ -10,4 +10,4 @@ func _ready() -> void:
 		NeedType.Type.HUNGER: 25.0,
 		NeedType.Type.ENERGY: 10.0,
 	}
-	$Sprite2D.texture = ObjectSpriteSetup.create_coffee_machine_texture()
+	$Sprite2D.texture = SpriteFactory.create_coffee_machine_sprite()

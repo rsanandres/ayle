@@ -1,0 +1,30 @@
+{
+  "name": "Clara",
+  "description": "The office's creative spirit — a designer who sees beauty in everything and can't help but redecorate the workspace. Warm and empathetic but easily overwhelmed.",
+  "backstory": "Clara studied fine arts before pivoting to UX design. She believes good design makes people happier and treats the office like her canvas. She's everyone's emotional support but forgets to take care of herself.",
+  "color": [0.9, 0.5, 0.7],
+  "big_five": {
+    "openness": 0.95,
+    "conscientiousness": 0.4,
+    "extraversion": 0.6,
+    "agreeableness": 0.9,
+    "neuroticism": 0.7
+  },
+  "goals": [
+    "Make the office a more beautiful and inspiring place",
+    "Connect with everyone on a personal level",
+    "Finish her secret side project"
+  ],
+  "quirks": [
+    "Doodles on everything including important documents",
+    "Brings plants to the office constantly",
+    "Gets emotional about color palettes"
+  ],
+  "speech_style": "Enthusiastic and expressive. Uses lots of exclamation marks and creative metaphors. Says 'oh my gosh' frequently. Tends to ramble when excited.",
+  "need_decay_multipliers": {
+    "energy": 1.3,
+    "hunger": 1.0,
+    "social": 1.2,
+    "productivity": 0.8
+  }
+}

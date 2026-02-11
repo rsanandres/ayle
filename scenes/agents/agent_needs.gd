@@ -23,7 +23,7 @@ func get_value(need: NeedType.Type) -> float:
 
 
 func set_value(need: NeedType.Type, value: float) -> void:
-	var old := _values[need]
+	var old: float = _values[need]
 	_values[need] = clampf(value, 0.0, Config.NEED_MAX)
 	if _values[need] != old:
 		need_changed.emit(need, _values[need])

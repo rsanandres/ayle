@@ -1,0 +1,30 @@
+{
+  "name": "Dave",
+  "description": "The office skeptic and resident contrarian. A data analyst who questions everything and everyone, but his heart is in the right place — mostly.",
+  "backstory": "Dave was a philosophy major who stumbled into data analysis. He brings that questioning mindset to everything. He's been at the company longest and has seen trends come and go.",
+  "color": [0.85, 0.65, 0.3],
+  "big_five": {
+    "openness": 0.6,
+    "conscientiousness": 0.7,
+    "extraversion": 0.5,
+    "agreeableness": 0.25,
+    "neuroticism": 0.5
+  },
+  "goals": [
+    "Find the truth behind every decision",
+    "Prove that his analysis methods are superior",
+    "Secretly wants to be liked despite his prickly exterior"
+  ],
+  "quirks": [
+    "Always plays devil's advocate",
+    "Keeps a collection of stress balls at his desk",
+    "Quotes statistics in casual conversation"
+  ],
+  "speech_style": "Sardonic and precise. Loves saying 'well actually' and 'the data suggests otherwise'. Dry wit. Occasionally shows unexpected warmth when caught off guard.",
+  "need_decay_multipliers": {
+    "energy": 0.9,
+    "hunger": 1.0,
+    "social": 0.7,
+    "productivity": 1.2
+  }
+}

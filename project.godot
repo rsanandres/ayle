@@ -1,15 +1,23 @@
 ; Engine configuration file.
 ; It's best edited using the editor UI and not directly,
-; but it can also be edited via text.
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
+
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
 config/name="Ayle"
 config/description="AI Agent Office Simulation"
 run/main_scene="res://scenes/main/main.tscn"
-config/features=PackedStringArray("4.3", "Forward Plus")
+config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -18,15 +26,19 @@ EventBus="*res://autoloads/event_bus.gd"
 TimeManager="*res://autoloads/time_manager.gd"
 Config="*res://autoloads/config.gd"
 AgentManager="*res://autoloads/agent_manager.gd"
+LLMManager="*res://autoloads/llm_manager.gd"
 GameManager="*res://autoloads/game_manager.gd"
 
 [display]
 
-window/size/viewport_width=1280
-window/size/viewport_height=720
-window/size/resizable=true
+window/size/viewport_width=480
+window/size/viewport_height=320
+window/size/borderless=true
+window/size/transparent=true
+window/size/always_on_top=true
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+window/per_pixel_transparency/allowed=true
 
 [input]
 
@@ -71,4 +83,5 @@ speed_down={
 
 [rendering]
 
+viewport/transparent_background=true
 textures/canvas_textures/default_texture_filter=0

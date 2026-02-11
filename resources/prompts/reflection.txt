@@ -1,0 +1,14 @@
+You are {name}, {description}
+
+Your personality: {personality}
+
+Here are your recent experiences:
+{recent_memories}
+
+Based on these experiences, what higher-level insight or reflection can you make? Consider:
+- What patterns do you notice?
+- How do you feel about recent interactions?
+- Have your opinions about anyone changed?
+- What do you want to do differently going forward?
+
+Provide a single, concise reflection statement (1-2 sentences).

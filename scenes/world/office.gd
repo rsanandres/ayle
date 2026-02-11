@@ -1,16 +1,19 @@
 extends Node2D
-## The office world. Holds tilemap, navigation, and interactable objects.
+## The office world. Draws pixel art floor with warm cozy palette.
 
 @onready var objects_container: Node2D = $Objects
 @onready var agents_container: Node2D = $Agents
 
 var _all_objects: Array[InteractableObject] = []
+var _w: float = Config.DESKTOP_OFFICE_WIDTH
+var _h: float = Config.DESKTOP_OFFICE_HEIGHT
+var _m: float = 10.0  # margin
 
 
 func _ready() -> void:
 	add_to_group("world")
 	_collect_objects()
-	_draw_floor()
+	queue_redraw()
 
 
 func get_all_objects() -> Array[InteractableObject]:
@@ -24,29 +27,45 @@ func _collect_objects() -> void:
 			_all_objects.append(child)
 
 
-func _draw_floor() -> void:
-	# Floor will be drawn by the TileMapLayer or a simple ColorRect
-	queue_redraw()
-
-
 func _draw() -> void:
-	# Draw a simple office floor
-	var floor_color := Color(0.85, 0.82, 0.75)
-	var wall_color := Color(0.45, 0.42, 0.38)
-	var floor_rect := Rect2(0, 0, 320, 240)
+	var floor_rect := Rect2(_m, _m, _w, _h)
 
-	# Floor
-	draw_rect(floor_rect, floor_color)
+	# Main floor — dark warm tone with slight transparency
+	draw_rect(floor_rect, Color(Palette.DARK_GRAY, 0.92))
 
-	# Walls (4px thick borders)
-	draw_rect(Rect2(0, 0, 320, 4), wall_color)        # top
-	draw_rect(Rect2(0, 236, 320, 4), wall_color)       # bottom
-	draw_rect(Rect2(0, 0, 4, 240), wall_color)         # left
-	draw_rect(Rect2(316, 0, 4, 240), wall_color)       # right
+	# Floor planks (horizontal lines, wood feel)
+	for y in range(int(_m), int(_m + _h), 16):
+		draw_line(
+			Vector2(_m, y), Vector2(_m + _w, y),
+			Color(Palette.WOOD_DARK, 0.15), 1.0
+		)
 
-	# Some floor details - tile grid lines
-	var line_color := Color(0.8, 0.77, 0.7)
-	for x in range(0, 321, 16):
-		draw_line(Vector2(x, 4), Vector2(x, 236), line_color, 1.0)
-	for y in range(0, 241, 16):
-		draw_line(Vector2(4, y), Vector2(316, y), line_color, 1.0)
+	# Subtle vertical plank offsets every other row
+	var row := 0
+	for y in range(int(_m), int(_m + _h), 16):
+		var offset := 8 if row % 2 == 1 else 0
+		for x in range(int(_m) + offset, int(_m + _w), 32):
+			draw_line(
+				Vector2(x, y), Vector2(x, y + 16),
+				Color(Palette.WOOD_DARK, 0.1), 1.0
+			)
+		row += 1
+
+	# Wall — top
+	draw_rect(Rect2(_m, _m, _w, 3), Color(Palette.WOOD_MID, 0.9))
+	draw_line(Vector2(_m, _m + 3), Vector2(_m + _w, _m + 3), Color(Palette.WOOD_DARK, 0.6), 1.0)
+
+	# Wall — left
+	draw_rect(Rect2(_m, _m, 3, _h), Color(Palette.WOOD_MID, 0.9))
+
+	# Baseboard — bottom
+	draw_rect(Rect2(_m, _m + _h - 2, _w, 2), Color(Palette.WOOD_DARK, 0.5))
+
+	# Border outline
+	draw_rect(floor_rect, Color(Palette.OUTLINE, 0.8), false, 1.0)
+
+	# Warm glow in center (ambient light spot)
+	var center := Vector2(_m + _w / 2, _m + _h / 2)
+	for r in range(60, 0, -5):
+		var alpha := 0.02 * (1.0 - float(r) / 60.0)
+		draw_circle(center, r, Color(Palette.WARM_YELLOW, alpha))

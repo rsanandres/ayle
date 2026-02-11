@@ -11,7 +11,6 @@ script = ExtResource("1_main")
 [node name="Office" parent="." instance=ExtResource("2_office")]
 
 [node name="GameCamera" type="Camera2D" parent="."]
-position = Vector2(160, 120)
 script = ExtResource("4_camera")
 
 [node name="HUD" parent="." instance=ExtResource("3_hud")]
