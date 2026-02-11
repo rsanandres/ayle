@@ -14,10 +14,16 @@ const MAX_ENTRIES := 100
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(200, 150)
-	visible = false
+	custom_minimum_size = Vector2(280, 200)
+	visible = true  # Visible by default
 	_build_ui()
 	EventBus.narrative_event.connect(_on_narrative_event)
+	# Subscribe to more detailed events
+	EventBus.agent_state_changed.connect(_on_agent_state_changed)
+	EventBus.agent_action_started.connect(_on_agent_action_started)
+	EventBus.conversation_started.connect(_on_conversation_started)
+	EventBus.conversation_line.connect(_on_conversation_line)
+	EventBus.conversation_ended.connect(_on_conversation_ended)
 
 
 func toggle() -> void:
@@ -156,6 +162,76 @@ func _build_stories_view() -> void:
 
 		box.add_child(HSeparator.new())
 		_content_vbox.add_child(box)
+
+
+func _on_agent_state_changed(agent: Node2D, _old_state: AgentState.Type, new_state: AgentState.Type) -> void:
+	if not is_instance_valid(agent):
+		return
+	# Only log interesting state changes
+	match new_state:
+		AgentState.Type.WALKING:
+			_log_activity(agent.agent_name, "started walking", 0.5)
+		AgentState.Type.INTERACTING:
+			var target_name := ""
+			if agent.current_target and agent.current_target.has_method("get") and "display_name" in agent.current_target:
+				target_name = agent.current_target.display_name
+			else:
+				target_name = "something"
+			_log_activity(agent.agent_name, "is using the %s" % target_name, 1.5)
+		AgentState.Type.TALKING:
+			pass  # Handled by conversation signals
+
+
+func _on_agent_action_started(agent: Node2D, action: ActionType.Type, target: Node2D) -> void:
+	if not is_instance_valid(agent):
+		return
+	var target_name := "?"
+	if target:
+		if target.has_method("get") and "display_name" in target:
+			target_name = target.display_name
+		elif "agent_name" in target:
+			target_name = target.agent_name
+	match action:
+		ActionType.Type.GO_TO_OBJECT:
+			_log_activity(agent.agent_name, "heads to the %s" % target_name, 1.0)
+		ActionType.Type.TALK_TO_AGENT:
+			_log_activity(agent.agent_name, "goes to talk to %s" % target_name, 2.0)
+		ActionType.Type.CONFESS_FEELINGS:
+			_log_activity(agent.agent_name, "is going to confess feelings to %s!" % target_name, 6.0)
+		ActionType.Type.WANDER:
+			_log_activity(agent.agent_name, "wanders around", 0.3)
+
+
+func _on_conversation_started(agent_a: String, agent_b: String) -> void:
+	_log_activity(agent_a, "started a conversation with %s" % agent_b, 2.5)
+
+
+func _on_conversation_line(speaker: String, line: String) -> void:
+	# Truncate long lines
+	var display_line := line
+	if display_line.length() > 60:
+		display_line = display_line.substr(0, 57) + "..."
+	_log_activity(speaker, "says: \"%s\"" % display_line, 1.5)
+
+
+func _on_conversation_ended(agent_a: String, agent_b: String) -> void:
+	_log_activity(agent_a, "finished talking with %s" % agent_b, 1.5)
+
+
+func _log_activity(agent_name: String, text: String, importance: float) -> void:
+	var entry := {
+		"text": "%s %s" % [agent_name, text],
+		"agents": [agent_name],
+		"importance": importance,
+		"timestamp": TimeManager.time_string,
+		"day": TimeManager.day,
+	}
+	_entries.append(entry)
+	if _entries.size() > MAX_ENTRIES:
+		_entries.pop_front()
+	if visible and _active_tab == "events":
+		_add_event_label(entry)
+		_scroll.call_deferred("set_v_scroll", _scroll.get_v_scroll_bar().max_value as int)
 
 
 func get_entries() -> Array[Dictionary]:

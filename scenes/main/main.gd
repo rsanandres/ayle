@@ -50,8 +50,8 @@ func _setup_expanded_mode() -> void:
 		_camera.position = bounds.get_center()
 	else:
 		_camera.position = Vector2(480, 320)
-	_camera_zoom = 1.0
-	_camera.zoom = Vector2.ONE
+	_camera_zoom = 2.0  # Start zoomed in so agents are visible
+	_camera.zoom = Vector2(2.0, 2.0)
 
 
 func set_expanded_mode(enable: bool) -> void:
@@ -130,10 +130,10 @@ func _handle_expanded_input(event: InputEventMouseButton) -> void:
 	elif event.button_index == MOUSE_BUTTON_MIDDLE:
 		_camera_panning = event.pressed
 	elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
-		_camera_zoom = clampf(_camera_zoom + 0.15, 0.5, 2.0)
+		_camera_zoom = clampf(_camera_zoom + 0.2, 0.5, 4.0)
 		_camera.zoom = Vector2(_camera_zoom, _camera_zoom)
 	elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
-		_camera_zoom = clampf(_camera_zoom - 0.15, 0.5, 2.0)
+		_camera_zoom = clampf(_camera_zoom - 0.2, 0.5, 4.0)
 		_camera.zoom = Vector2(_camera_zoom, _camera_zoom)
 
 

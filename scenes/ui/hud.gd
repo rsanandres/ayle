@@ -45,12 +45,12 @@ func _ready() -> void:
 	_agent_inspector.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	add_child(_agent_inspector)
 
-	# Create narrative log (bottom-left)
+	# Create narrative log (bottom-left, always visible)
 	_narrative_log = NarrativeLog.new()
 	_narrative_log.offset_left = 10
-	_narrative_log.offset_top = -160
-	_narrative_log.offset_right = 210
-	_narrative_log.offset_bottom = -25
+	_narrative_log.offset_top = -250
+	_narrative_log.offset_right = 320
+	_narrative_log.offset_bottom = -10
 	_narrative_log.anchors_preset = Control.PRESET_BOTTOM_LEFT
 	_narrative_log.anchor_top = 1.0
 	_narrative_log.anchor_bottom = 1.0

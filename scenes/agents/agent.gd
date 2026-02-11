@@ -319,6 +319,11 @@ func _apply_personality_decay_rates() -> void:
 func _on_thought(thought: String) -> void:
 	thought_bubble.text = thought
 	thought_bubble.visible = true
+	# Log thought to narrative
+	EventBus.narrative_event.emit(
+		"%s thinks: \"%s\"" % [agent_name, thought],
+		[agent_name], 2.0
+	)
 	# Fade out after a few seconds
 	var tween := create_tween()
 	tween.tween_interval(4.0)
