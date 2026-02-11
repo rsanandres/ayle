@@ -110,6 +110,16 @@ func _unhandled_input(event: InputEvent) -> void:
 				int(mouse_pos.y) + int(_drag_offset.y)
 			)
 
+	elif expanded_mode and event is InputEventMagnifyGesture:
+		# macOS trackpad pinch-to-zoom
+		_camera_zoom = clampf(_camera_zoom * event.factor, 0.5, 4.0)
+		_camera.zoom = Vector2(_camera_zoom, _camera_zoom)
+
+	elif expanded_mode and event is InputEventPanGesture:
+		# macOS trackpad two-finger pan
+		_camera.position += event.delta * (3.0 / _camera_zoom)
+		_follow_agent = null
+
 
 func _handle_desktop_input(event: InputEventMouseButton) -> void:
 	if event.button_index == MOUSE_BUTTON_LEFT:
