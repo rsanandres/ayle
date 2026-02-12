@@ -174,24 +174,6 @@ func witness_death(dead_name: String, cause: String) -> void:
 	needs.restore(NeedType.Type.SOCIAL, -30.0)
 
 
-func _check_mental_break() -> bool:
-	# If multiple needs are critically low, agent may have a mental break
-	var critical_count := 0
-	var all_values: Dictionary = needs.get_all_values()
-	for need in all_values:
-		if need == NeedType.Type.HEALTH:
-			continue
-		var val: float = all_values[need]
-		if val < Config.NEED_CRITICAL_THRESHOLD:
-			critical_count += 1
-	if critical_count >= 3:
-		# Mental break: agent wanders aimlessly and vents
-		memory.add_observation("%s is overwhelmed and needs a moment." % agent_name, 5.0)
-		_start_wander()
-		return true
-	return false
-
-
 func _make_decision() -> void:
 	state = AgentState.Type.DECIDING
 	var nearby_objects := _get_nearby_objects()
@@ -617,6 +599,91 @@ func _on_input_event(viewport: Node, event: InputEvent, _shape_idx: int) -> void
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		EventBus.agent_selected.emit(self)
 		viewport.set_input_as_handled()
+
+
+func _check_mental_break() -> bool:
+	## Returns true if a mental break occurred (consuming the think tick).
+	var all_values: Dictionary = needs.get_all_values()
+	var any_below_10 := false
+	for need in all_values:
+		if need == NeedType.Type.HEALTH:
+			continue
+		var val: float = all_values[need]
+		if val < 10.0:
+			any_below_10 = true
+			break
+	if not any_below_10:
+		return false
+	# 20% chance per think tick
+	if randf() >= 0.2:
+		return false
+
+	# Find the agent we like least
+	var least_liked_name: String = ""
+	var least_affinity: float = INF
+	var all_rels: Dictionary = relationships.get_all_relationships()
+	for other_name in all_rels:
+		var rel: RelationshipEntry = all_rels[other_name]
+		if rel.affinity < least_affinity:
+			least_affinity = rel.affinity
+			least_liked_name = other_name
+
+	# If no relationships yet, pick a random nearby agent
+	if least_liked_name == "":
+		var nearby := AgentManager.get_agents_near(global_position, 200.0, self)
+		if not nearby.is_empty():
+			var target: Node2D = nearby[randi() % nearby.size()]
+			least_liked_name = target.agent_name
+
+	# Reduce affinity with all nearby agents by 5
+	var nearby_agents := AgentManager.get_agents_near(global_position, 120.0, self)
+	for other in nearby_agents:
+		if not is_instance_valid(other):
+			continue
+		var rel: RelationshipEntry = relationships.get_relationship(other.agent_name)
+		rel.affinity = clampf(rel.affinity - 5.0, -100.0, 100.0)
+		EventBus.relationship_changed.emit(agent_name, other.agent_name, rel)
+
+	# Add memory about the outburst
+	var outburst_desc: String
+	if least_liked_name != "":
+		outburst_desc = "%s had a mental breakdown and lashed out at %s." % [agent_name, least_liked_name]
+	else:
+		outburst_desc = "%s had a mental breakdown and lashed out at everyone nearby." % agent_name
+	memory.add_memory(
+		MemoryEntry.MemoryType.OBSERVATION,
+		outburst_desc,
+		8.0, PackedStringArray([least_liked_name]) if least_liked_name != "" else PackedStringArray()
+	)
+	memory.memories[-1].emotion = "rage"
+	memory.memories[-1].sentiment = -0.9
+	memory.memories[-1].decay_protected = true
+
+	# Nearby agents also remember this
+	for other in nearby_agents:
+		if not is_instance_valid(other):
+			continue
+		other.memory.add_memory(
+			MemoryEntry.MemoryType.OBSERVATION,
+			"%s witnessed %s having a mental breakdown." % [other.agent_name, agent_name],
+			6.0, PackedStringArray([agent_name])
+		)
+		other.memory.memories[-1].emotion = "shock"
+		other.memory.memories[-1].sentiment = -0.4
+
+	# Emit narrative event
+	var narrative_agents: Array = [agent_name]
+	if least_liked_name != "":
+		narrative_agents.append(least_liked_name)
+	EventBus.narrative_event.emit(
+		outburst_desc,
+		narrative_agents, 8.0
+	)
+
+	# Show speech bubble
+	show_speech("I can't take this anymore!", 4.0)
+	state = AgentState.Type.IDLE
+	return true
 
 
 func _process(_delta: float) -> void:
