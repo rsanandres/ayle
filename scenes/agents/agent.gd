@@ -32,6 +32,8 @@ var _selection_ring: Node2D = null
 var _is_selected: bool = false
 var _interaction_particles: CPUParticles2D = null
 var _death_particles: CPUParticles2D = null
+var _mood_timer: Timer = null
+var _current_mood: String = ""
 
 @onready var needs: AgentNeeds = $AgentNeeds
 @onready var heuristic_brain: HeuristicBrain = $HeuristicBrain
@@ -65,6 +67,12 @@ func _ready() -> void:
 	# Initialize health
 	health_state = HealthState.new()
 	health_state.randomize_lifespan()
+	# Mood indicator timer — updates every 2 seconds instead of every frame
+	_mood_timer = Timer.new()
+	_mood_timer.wait_time = 2.0
+	_mood_timer.autostart = true
+	_mood_timer.timeout.connect(_update_mood_indicator)
+	add_child(_mood_timer)
 	EventBus.day_changed.connect(_on_day_changed)
 	EventBus.agent_selected.connect(_on_global_agent_selected)
 	EventBus.agent_deselected.connect(_on_global_agent_deselected)
@@ -85,7 +93,6 @@ func _physics_process(delta: float) -> void:
 		AgentState.Type.INTERACTING:
 			_process_interacting(delta)
 	_animate(delta)
-	_update_emotion_indicator()
 	_update_need_warning()
 
 
@@ -95,6 +102,9 @@ func request_think() -> void:
 	if state == AgentState.Type.INTERACTING or state == AgentState.Type.TALKING:
 		return
 	if state == AgentState.Type.WALKING:
+		return
+	# Check for mental break when needs are critically low
+	if _check_mental_break():
 		return
 	_make_decision()
 
@@ -162,6 +172,24 @@ func witness_death(dead_name: String, cause: String) -> void:
 	memory.memories[-1].sentiment = -0.9
 	memory.memories[-1].decay_protected = true
 	needs.restore(NeedType.Type.SOCIAL, -30.0)
+
+
+func _check_mental_break() -> bool:
+	# If multiple needs are critically low, agent may have a mental break
+	var critical_count := 0
+	var all_values: Dictionary = needs.get_all_values()
+	for need in all_values:
+		if need == NeedType.Type.HEALTH:
+			continue
+		var val: float = all_values[need]
+		if val < Config.NEED_CRITICAL_THRESHOLD:
+			critical_count += 1
+	if critical_count >= 3:
+		# Mental break: agent wanders aimlessly and vents
+		memory.add_observation("%s is overwhelmed and needs a moment." % agent_name, 5.0)
+		_start_wander()
+		return true
+	return false
 
 
 func _make_decision() -> void:
@@ -481,24 +509,95 @@ func _update_need_warning() -> void:
 		label.remove_theme_color_override("font_color")
 
 
-func _update_emotion_indicator() -> void:
-	if not health_state:
+func _update_mood_indicator() -> void:
+	if is_dead or not health_state:
 		return
-	var indicator_text := ""
-	if health_state.life_stage == LifeStage.Type.DYING:
-		indicator_text = "..."
-	elif state == AgentState.Type.TALKING:
-		indicator_text = "..."
-	elif needs.get_value(NeedType.Type.ENERGY) < 15.0:
-		indicator_text = "zzz"
-	elif needs.get_value(NeedType.Type.SOCIAL) < 15.0:
-		indicator_text = "..."
-
-	if indicator_text != "":
-		emotion_indicator.text = indicator_text
-		emotion_indicator.visible = true
-	else:
+	var new_mood := _determine_mood()
+	if new_mood == _current_mood:
+		return
+	_current_mood = new_mood
+	if new_mood == "":
 		emotion_indicator.visible = false
+		return
+	emotion_indicator.text = new_mood
+	emotion_indicator.add_theme_color_override("font_color", _get_mood_color(new_mood))
+	emotion_indicator.visible = true
+	emotion_indicator.modulate.a = 1.0
+	# Pulse animation: scale up then back to normal
+	emotion_indicator.pivot_offset = emotion_indicator.size * 0.5
+	var tween := create_tween()
+	tween.tween_property(emotion_indicator, "scale", Vector2(1.4, 1.4), 0.12).set_ease(Tween.EASE_OUT)
+	tween.tween_property(emotion_indicator, "scale", Vector2(1.0, 1.0), 0.2).set_ease(Tween.EASE_IN)
+
+
+func _determine_mood() -> String:
+	# Priority-ordered mood checks
+	# 1. Sick conditions
+	if not health_state.conditions.is_empty():
+		return "~"
+	# 2. Dying
+	if health_state.life_stage == LifeStage.Type.DYING:
+		return "..."
+	# 3. Exhausted
+	var energy: float = needs.get_value(NeedType.Type.ENERGY)
+	if energy < 25.0:
+		return "zzZ"
+	# 4. Angry (has "angry_at" relationship tag or very low social with rival)
+	if _has_angry_relationship():
+		return "##"
+	# 5. Hungry
+	var hunger: float = needs.get_value(NeedType.Type.HUNGER)
+	if hunger < 25.0:
+		return "!"
+	# 6. Stressed
+	var productivity: float = needs.get_value(NeedType.Type.PRODUCTIVITY)
+	if productivity < 20.0:
+		return "!!"
+	# 7. Romantic (dating/partners or high romantic interest)
+	if _has_romantic_bond():
+		return "♥"
+	# 8. Happy (high social + energy)
+	var social: float = needs.get_value(NeedType.Type.SOCIAL)
+	if social > 70.0 and energy > 60.0:
+		return "♪"
+	# 9. Neutral — no indicator
+	return ""
+
+
+func _has_angry_relationship() -> bool:
+	var all_rels: Dictionary = relationships.get_all_relationships()
+	for rel_name in all_rels:
+		var rel: RelationshipEntry = all_rels[rel_name]
+		if rel.has_tag("angry_at"):
+			return true
+		# Very negative affinity with a rival counts as angry
+		if rel.affinity < -60.0 and rel.has_tag("rival"):
+			return true
+	return false
+
+
+func _has_romantic_bond() -> bool:
+	var all_rels: Dictionary = relationships.get_all_relationships()
+	for rel_name in all_rels:
+		var rel: RelationshipEntry = all_rels[rel_name]
+		if rel.relationship_status == RelationshipEntry.Status.DATING or rel.relationship_status == RelationshipEntry.Status.PARTNERS:
+			return true
+		if rel.romantic_interest > 50.0:
+			return true
+	return false
+
+
+func _get_mood_color(mood: String) -> Color:
+	match mood:
+		"♪": return Color(0.4, 0.9, 0.4, 0.95)       # green — happy
+		"♥": return Color(1.0, 0.45, 0.55, 0.95)      # pink-red — lovestruck
+		"zzZ": return Color(0.6, 0.65, 0.8, 0.85)     # blue-grey — tired
+		"!": return Color(1.0, 0.75, 0.2, 0.95)        # amber — hungry
+		"!!": return Color(1.0, 0.3, 0.3, 0.95)        # red — stressed
+		"##": return Color(1.0, 0.2, 0.2, 0.95)        # red — angry
+		"~": return Color(0.55, 0.8, 0.35, 0.85)       # sickly green — sick
+		"...": return Color(0.7, 0.7, 0.7, 0.8)        # grey — dying
+		_: return Color(0.9, 0.9, 0.9, 0.9)
 
 
 func _on_day_changed(day: int) -> void:
