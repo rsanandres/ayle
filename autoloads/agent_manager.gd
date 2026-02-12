@@ -21,6 +21,8 @@ var _tier_indices: Dictionary = {
 }
 var _tier_reclassify_timer: float = 0.0
 var _grid_update_timer: float = 0.0
+var _early_hook_done: bool = false
+var _think_count: int = 0
 
 
 func _ready() -> void:
@@ -177,11 +179,63 @@ func _process(delta: float) -> void:
 func _trigger_next_think_simple() -> void:
 	if agents.is_empty():
 		return
+
+	# Early hook: force first 2 agents to seek each other out in the first few ticks
+	_think_count += 1
+	if not _early_hook_done and _think_count <= agents.size() and agents.size() >= 2:
+		_force_early_social()
+		if _think_count >= agents.size():
+			_early_hook_done = true
+		return
+
 	var idx: int = _tier_indices.get(ThinkTier.ACTIVE, 0) % agents.size()
 	var agent := agents[idx]
 	if agent.has_method("request_think"):
 		agent.request_think()
 	_tier_indices[ThinkTier.ACTIVE] = (idx + 1) % agents.size()
+
+
+func _force_early_social() -> void:
+	## In the first round of thinks, force agents to seek conversations
+	## with the most personality-different agent. Creates instant drama hook.
+	var idx: int = (_think_count - 1) % agents.size()
+	var agent: Node2D = agents[idx]
+	if not is_instance_valid(agent) or agent.is_dead:
+		return
+	if agent.state != AgentState.Type.IDLE:
+		return
+
+	# Find the most personality-different available agent
+	var best_target: Node2D = null
+	var best_diff: float = -1.0
+	for other in agents:
+		if other == agent or not is_instance_valid(other) or other.is_dead:
+			continue
+		if other.state == AgentState.Type.TALKING:
+			continue
+		var diff := _personality_difference(agent, other)
+		if diff > best_diff:
+			best_diff = diff
+			best_target = other
+
+	if best_target:
+		# Force a talk decision
+		agent._execute_decision({"action": ActionType.Type.TALK_TO_AGENT, "target": best_target})
+	else:
+		agent.request_think()
+
+
+func _personality_difference(a: Node2D, b: Node2D) -> float:
+	## Returns 0-1 personality difference score (higher = more different).
+	if not a.personality or not b.personality:
+		return randf() * 0.5
+	var diff: float = 0.0
+	diff += absf(a.personality.extraversion - b.personality.extraversion)
+	diff += absf(a.personality.agreeableness - b.personality.agreeableness)
+	diff += absf(a.personality.neuroticism - b.personality.neuroticism)
+	diff += absf(a.personality.openness - b.personality.openness)
+	diff += absf(a.personality.conscientiousness - b.personality.conscientiousness)
+	return diff / 5.0
 
 
 func _trigger_tier_think(tier: ThinkTier) -> void:

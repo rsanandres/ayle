@@ -64,14 +64,14 @@ func _build_toolbar() -> void:
 	# Agent count
 	_agent_count_label = Label.new()
 	_agent_count_label.text = "Agents: 0"
-	_agent_count_label.add_theme_font_size_override("font_size", 7)
+	_agent_count_label.add_theme_font_size_override("font_size", 9)
 	_agent_count_label.add_theme_color_override("font_color", Color(0.7, 0.9, 0.7))
 	_toolbar.add_child(_agent_count_label)
 
 	# God mode label
 	var lbl := Label.new()
 	lbl.text = "GOD MODE"
-	lbl.add_theme_font_size_override("font_size", 8)
+	lbl.add_theme_font_size_override("font_size", 9)
 	lbl.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3, 0.9))
 	_toolbar.add_child(lbl)
 
@@ -119,7 +119,7 @@ func _add_toolbar_button(text: String, callback: Callable) -> void:
 	var btn := Button.new()
 	btn.text = text
 	btn.custom_minimum_size = Vector2(40, 14)
-	btn.add_theme_font_size_override("font_size", 7)
+	btn.add_theme_font_size_override("font_size", 9)
 	btn.pressed.connect(callback)
 	_toolbar.add_child(btn)
 
@@ -190,7 +190,7 @@ func _rebuild_object_panel() -> void:
 	for t in types:
 		var btn := Button.new()
 		btn.text = t.replace("_", " ").capitalize()
-		btn.add_theme_font_size_override("font_size", 8)
+		btn.add_theme_font_size_override("font_size", 9)
 		btn.pressed.connect(_on_select_object_type.bind(t))
 		_object_panel.add_child(btn)
 
@@ -208,7 +208,7 @@ func _rebuild_agent_panel() -> void:
 	for p in personalities:
 		var btn := Button.new()
 		btn.text = "Spawn %s" % p.capitalize()
-		btn.add_theme_font_size_override("font_size", 8)
+		btn.add_theme_font_size_override("font_size", 9)
 		btn.pressed.connect(_on_spawn_agent.bind(p))
 		_agent_panel.add_child(btn)
 
@@ -217,14 +217,14 @@ func _rebuild_agent_panel() -> void:
 	# Procedural spawn buttons
 	var spawn_one := Button.new()
 	spawn_one.text = "Spawn Random Agent"
-	spawn_one.add_theme_font_size_override("font_size", 8)
+	spawn_one.add_theme_font_size_override("font_size", 9)
 	spawn_one.add_theme_color_override("font_color", Color(0.5, 0.9, 0.5))
 	spawn_one.pressed.connect(_on_spawn_random)
 	_agent_panel.add_child(spawn_one)
 
 	var spawn_ten := Button.new()
 	spawn_ten.text = "Spawn 10 Random"
-	spawn_ten.add_theme_font_size_override("font_size", 8)
+	spawn_ten.add_theme_font_size_override("font_size", 9)
 	spawn_ten.add_theme_color_override("font_color", Color(0.5, 0.9, 0.5))
 	spawn_ten.pressed.connect(_on_spawn_batch)
 	_agent_panel.add_child(spawn_ten)
@@ -235,7 +235,7 @@ func _rebuild_agent_panel() -> void:
 	for agent in AgentManager.agents:
 		var btn := Button.new()
 		btn.text = "X %s" % agent.agent_name
-		btn.add_theme_font_size_override("font_size", 7)
+		btn.add_theme_font_size_override("font_size", 9)
 		btn.pressed.connect(_on_remove_agent.bind(agent.agent_name))
 		_agent_panel.add_child(btn)
 
@@ -252,7 +252,7 @@ func _rebuild_event_panel() -> void:
 	for ev in events:
 		var btn := Button.new()
 		btn.text = ev.event_name
-		btn.add_theme_font_size_override("font_size", 8)
+		btn.add_theme_font_size_override("font_size", 9)
 		btn.tooltip_text = ev.description
 		btn.pressed.connect(_on_trigger_event.bind(ev.event_id))
 		_event_panel.add_child(btn)
@@ -269,7 +269,7 @@ func _rebuild_groups_panel() -> void:
 	if GroupManager.groups.is_empty():
 		var empty := Label.new()
 		empty.text = "No groups formed yet."
-		empty.add_theme_font_size_override("font_size", 8)
+		empty.add_theme_font_size_override("font_size", 9)
 		empty.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 		_groups_panel.add_child(empty)
 		return
@@ -278,20 +278,20 @@ func _rebuild_groups_panel() -> void:
 		var box := VBoxContainer.new()
 		var name_lbl := Label.new()
 		name_lbl.text = group.group_name
-		name_lbl.add_theme_font_size_override("font_size", 8)
+		name_lbl.add_theme_font_size_override("font_size", 9)
 		name_lbl.add_theme_color_override("font_color", Color(0.9, 0.8, 0.4))
 		box.add_child(name_lbl)
 
 		var members_lbl := Label.new()
 		members_lbl.text = "%s (%s)" % [", ".join(group.members), group.group_type]
-		members_lbl.add_theme_font_size_override("font_size", 7)
+		members_lbl.add_theme_font_size_override("font_size", 9)
 		members_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		box.add_child(members_lbl)
 
 		if not group.rival_groups.is_empty():
 			var rival_lbl := Label.new()
 			rival_lbl.text = "Rivals: %d groups" % group.rival_groups.size()
-			rival_lbl.add_theme_font_size_override("font_size", 7)
+			rival_lbl.add_theme_font_size_override("font_size", 9)
 			rival_lbl.add_theme_color_override("font_color", Color(0.9, 0.4, 0.3))
 			box.add_child(rival_lbl)
 
@@ -311,7 +311,7 @@ func _rebuild_stories_panel() -> void:
 	if top.is_empty():
 		var empty := Label.new()
 		empty.text = "No storylines yet."
-		empty.add_theme_font_size_override("font_size", 8)
+		empty.add_theme_font_size_override("font_size", 9)
 		empty.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 		_stories_panel.add_child(empty)
 		return
@@ -320,7 +320,7 @@ func _rebuild_stories_panel() -> void:
 		var box := VBoxContainer.new()
 		var title_lbl := Label.new()
 		title_lbl.text = "%s (%.0f)" % [sl.title, sl.drama_score]
-		title_lbl.add_theme_font_size_override("font_size", 8)
+		title_lbl.add_theme_font_size_override("font_size", 9)
 		title_lbl.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
 		title_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		box.add_child(title_lbl)
@@ -328,7 +328,7 @@ func _rebuild_stories_panel() -> void:
 		if sl.summary != "":
 			var sum_lbl := Label.new()
 			sum_lbl.text = sl.summary
-			sum_lbl.add_theme_font_size_override("font_size", 7)
+			sum_lbl.add_theme_font_size_override("font_size", 9)
 			sum_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			box.add_child(sum_lbl)
 

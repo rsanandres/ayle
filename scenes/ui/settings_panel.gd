@@ -82,7 +82,7 @@ func _ready() -> void:
 
 	var save_btn := Button.new()
 	save_btn.text = "Save"
-	save_btn.add_theme_font_size_override("font_size", 8)
+	save_btn.add_theme_font_size_override("font_size", 9)
 	save_btn.pressed.connect(func() -> void:
 		SettingsManager.save_settings()
 	)
@@ -90,7 +90,7 @@ func _ready() -> void:
 
 	var close_btn := Button.new()
 	close_btn.text = "Close"
-	close_btn.add_theme_font_size_override("font_size", 8)
+	close_btn.add_theme_font_size_override("font_size", 9)
 	close_btn.pressed.connect(func() -> void:
 		SettingsManager.save_settings()
 		visible = false
@@ -103,7 +103,7 @@ func _add_section(parent: VBoxContainer, title: String) -> void:
 	parent.add_child(sep)
 	var lbl := Label.new()
 	lbl.text = title
-	lbl.add_theme_font_size_override("font_size", 8)
+	lbl.add_theme_font_size_override("font_size", 9)
 	lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.75))
 	parent.add_child(lbl)
 
@@ -116,7 +116,7 @@ func _add_slider(parent: VBoxContainer, label_text: String, initial: float, call
 	var lbl := Label.new()
 	lbl.text = label_text
 	lbl.custom_minimum_size = Vector2(60, 0)
-	lbl.add_theme_font_size_override("font_size", 7)
+	lbl.add_theme_font_size_override("font_size", 9)
 	row.add_child(lbl)
 
 	var slider := HSlider.new()
@@ -138,7 +138,7 @@ func _add_slider_int(parent: VBoxContainer, label_text: String, initial: int, mi
 	var lbl := Label.new()
 	lbl.text = label_text
 	lbl.custom_minimum_size = Vector2(60, 0)
-	lbl.add_theme_font_size_override("font_size", 7)
+	lbl.add_theme_font_size_override("font_size", 9)
 	row.add_child(lbl)
 
 	var slider := HSlider.new()
@@ -151,7 +151,7 @@ func _add_slider_int(parent: VBoxContainer, label_text: String, initial: int, mi
 
 	var val_label := Label.new()
 	val_label.text = str(initial)
-	val_label.add_theme_font_size_override("font_size", 7)
+	val_label.add_theme_font_size_override("font_size", 9)
 	val_label.custom_minimum_size = Vector2(20, 0)
 
 	slider.value_changed.connect(func(v: float) -> void:
@@ -166,7 +166,7 @@ func _add_checkbox(parent: VBoxContainer, label_text: String, initial: bool, cal
 	var cb := CheckBox.new()
 	cb.text = label_text
 	cb.button_pressed = initial
-	cb.add_theme_font_size_override("font_size", 7)
+	cb.add_theme_font_size_override("font_size", 9)
 	cb.toggled.connect(callback)
 	parent.add_child(cb)
 
@@ -179,11 +179,11 @@ func _add_dropdown(parent: VBoxContainer, label_text: String, options: Array, se
 	var lbl := Label.new()
 	lbl.text = label_text
 	lbl.custom_minimum_size = Vector2(60, 0)
-	lbl.add_theme_font_size_override("font_size", 7)
+	lbl.add_theme_font_size_override("font_size", 9)
 	row.add_child(lbl)
 
 	var opt := OptionButton.new()
-	opt.add_theme_font_size_override("font_size", 7)
+	opt.add_theme_font_size_override("font_size", 9)
 	for o in options:
 		opt.add_item(o)
 	opt.selected = selected
@@ -200,12 +200,12 @@ func _add_text_input(parent: VBoxContainer, label_text: String, initial: String,
 	var lbl := Label.new()
 	lbl.text = label_text
 	lbl.custom_minimum_size = Vector2(60, 0)
-	lbl.add_theme_font_size_override("font_size", 7)
+	lbl.add_theme_font_size_override("font_size", 9)
 	row.add_child(lbl)
 
 	var input := LineEdit.new()
 	input.text = initial
-	input.add_theme_font_size_override("font_size", 7)
+	input.add_theme_font_size_override("font_size", 9)
 	input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	input.text_submitted.connect(callback)
 	row.add_child(input)

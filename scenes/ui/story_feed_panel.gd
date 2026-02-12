@@ -53,7 +53,7 @@ func _rebuild_display() -> void:
 	if top_stories.is_empty():
 		var empty_lbl := Label.new()
 		empty_lbl.text = "No stories yet..."
-		empty_lbl.add_theme_font_size_override("font_size", 8)
+		empty_lbl.add_theme_font_size_override("font_size", 9)
 		empty_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 		_vbox.add_child(empty_lbl)
 		return
@@ -65,7 +65,7 @@ func _rebuild_display() -> void:
 		var header := HBoxContainer.new()
 		var title_lbl := Label.new()
 		title_lbl.text = sl.title
-		title_lbl.add_theme_font_size_override("font_size", 8)
+		title_lbl.add_theme_font_size_override("font_size", 9)
 		title_lbl.add_theme_color_override("font_color", _drama_color(sl.drama_score))
 		title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		title_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -73,7 +73,7 @@ func _rebuild_display() -> void:
 
 		var drama_lbl := Label.new()
 		drama_lbl.text = "%.0f" % sl.drama_score
-		drama_lbl.add_theme_font_size_override("font_size", 7)
+		drama_lbl.add_theme_font_size_override("font_size", 9)
 		drama_lbl.add_theme_color_override("font_color", _drama_color(sl.drama_score))
 		header.add_child(drama_lbl)
 		entry_box.add_child(header)
@@ -84,7 +84,7 @@ func _rebuild_display() -> void:
 			detail_lbl.text = sl.summary
 		else:
 			detail_lbl.text = "Involving: %s" % ", ".join(sl.involved_agents)
-		detail_lbl.add_theme_font_size_override("font_size", 7)
+		detail_lbl.add_theme_font_size_override("font_size", 9)
 		detail_lbl.add_theme_color_override("font_color", Color(0.65, 0.65, 0.7))
 		detail_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		entry_box.add_child(detail_lbl)

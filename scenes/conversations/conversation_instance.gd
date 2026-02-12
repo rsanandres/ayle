@@ -273,6 +273,28 @@ func _heuristic_line(speaker: Node2D, listener: Node2D) -> String:
 	var time_greeting: String = "Morning" if hour < 12 else ("Afternoon" if hour < 17 else "Evening")
 	var is_late: bool = hour >= 20 or hour < 6
 
+	# --- Memory-driven lines (20% chance: reference a recent memory) ---
+	if speaker.memory and randf() < 0.2:
+		var recent: Array = speaker.memory.get_recent(3)
+		if not recent.is_empty():
+			var mem: MemoryEntry = recent[randi() % recent.size()]
+			var mem_line := _memory_driven_line(s_name, l_name, mem)
+			if mem_line != "":
+				return mem_line
+
+	# --- Personality-driven lines (25% chance: trait-specific dialogue) ---
+	if speaker.personality and randf() < 0.25:
+		var trait_line := _personality_driven_line(speaker, listener, s_name, l_name)
+		if trait_line != "":
+			return trait_line
+
+	# --- Behavior modifier lines (mourning, avoidance) ---
+	if speaker.has_method("get_active_modifiers"):
+		var mods: Array = speaker.get_active_modifiers()
+		for mod in mods:
+			if mod.get("type", "") == "mourning" and randf() < 0.5:
+				return _mourning_line(s_name, l_name, mod.get("target", "someone"))
+
 	# --- Need-based lines (40% chance if any need is critical) ---
 	var energy_val: float = speaker.needs.get_value(NeedType.Type.ENERGY)
 	var hunger_val: float = speaker.needs.get_value(NeedType.Type.HUNGER)
@@ -522,3 +544,117 @@ func _get_neutral_lines(_s_name: String, l_name: String, time_greeting: String, 
 		pool.append("Working late again? We should probably both go home, {listener}.")
 		pool.append("The office is kind of eerie this late. You're braver than I am, {listener}.")
 	return pool
+
+
+func _memory_driven_line(s_name: String, l_name: String, mem: MemoryEntry) -> String:
+	## Generate a line that references a recent memory.
+	var desc: String = mem.description
+	# Truncate if too long
+	if desc.length() > 50:
+		desc = desc.substr(0, 47) + "..."
+
+	var templates: Array[String] = [
+		"You know, I keep thinking about %s..." % desc.to_lower(),
+		"Hey %s, remember when %s? That was something." % [l_name, desc.to_lower()],
+		"I can't get it out of my head — %s." % desc.to_lower(),
+		"This reminds me... %s." % desc,
+		"I was just thinking about %s. Wild, right?" % desc.to_lower(),
+	]
+	if mem.emotion != "" and mem.emotion != "neutral":
+		templates.append("I'm still feeling %s about %s." % [mem.emotion, desc.to_lower()])
+	return templates[randi() % templates.size()]
+
+
+func _personality_driven_line(speaker: Node2D, listener: Node2D, s_name: String, l_name: String) -> String:
+	## Generate a line driven by the speaker's dominant personality trait.
+	var p: PersonalityProfile = speaker.personality
+	if not p:
+		return ""
+
+	# Find dominant trait
+	var traits := {
+		"openness": p.openness,
+		"conscientiousness": p.conscientiousness,
+		"extraversion": p.extraversion,
+		"agreeableness": p.agreeableness,
+		"neuroticism": p.neuroticism,
+	}
+	var max_trait: String = ""
+	var max_val: float = 0.0
+	for t in traits:
+		if traits[t] > max_val:
+			max_val = traits[t]
+			max_trait = t
+
+	match max_trait:
+		"openness":
+			var pool: Array[String] = [
+				"I had the most fascinating idea last night, %s. Want to hear it?" % l_name,
+				"Have you ever wondered why things are the way they are?",
+				"I've been reading about something really interesting. It's about...",
+				"Sometimes I think we should completely rethink how this office works.",
+				"I love learning new things. Did you know...",
+				"What if we tried something completely different today?",
+				"I saw something beautiful on my way here. It made me think.",
+			]
+			return pool[randi() % pool.size()]
+		"conscientiousness":
+			var pool: Array[String] = [
+				"I've got my whole day planned out. Want to see my list?",
+				"Staying organized is the key to everything, %s." % l_name,
+				"I finished my tasks early today. Now onto the bonus list.",
+				"Have you met your goals for today, %s?" % l_name,
+				"I can't relax until everything on my desk is sorted.",
+				"Discipline is freedom, %s. Trust me on this." % l_name,
+				"I made a spreadsheet for our project. Want a copy?",
+			]
+			return pool[randi() % pool.size()]
+		"extraversion":
+			var pool: Array[String] = [
+				"I've talked to everyone today and I still want more! How are YOU, %s?" % l_name,
+				"This place is so much better when everyone's chatting.",
+				"Let's get the whole group together later. The more the merrier!",
+				"I get so much energy from talking to people like you, %s." % l_name,
+				"I was literally just looking for someone to talk to. Perfect timing!",
+				"Silence makes me uncomfortable, honestly. Let's keep talking!",
+				"Want to go say hi to everyone? I'll come with you!",
+			]
+			return pool[randi() % pool.size()]
+		"agreeableness":
+			var pool: Array[String] = [
+				"I just want everyone to get along. Is that too much to ask?",
+				"How are you really doing, %s? You can tell me anything." % l_name,
+				"I noticed you seemed a bit off today. Everything okay?",
+				"I baked... well, I planned to bake something for everyone. It's the thought that counts.",
+				"I just think it's so important that we look out for each other.",
+				"You're having a tough day? Here, take my spot by the coffee machine.",
+				"I don't like conflict. Can we all just be friends?",
+			]
+			return pool[randi() % pool.size()]
+		"neuroticism":
+			var pool: Array[String] = [
+				"I'm overthinking everything again. Do you think I'm doing okay?",
+				"What if something goes wrong today? I have a bad feeling.",
+				"Sorry, I'm a bit on edge. It's been one of those days, %s." % l_name,
+				"Do you think people actually like me here? Be honest.",
+				"I couldn't sleep last night. Too many thoughts racing around.",
+				"I need reassurance. Tell me everything's going to be fine.",
+				"I just realized I might have said something wrong earlier. Did I?",
+			]
+			return pool[randi() % pool.size()]
+	return ""
+
+
+func _mourning_line(s_name: String, l_name: String, deceased: String) -> String:
+	## Lines for an agent who is mourning a death.
+	var pool: Array[String] = [
+		"I still can't believe %s is gone..." % deceased,
+		"The office feels so different without %s." % deceased,
+		"I keep looking for %s out of habit. Then I remember." % deceased,
+		"Sorry, %s. I'm not great company today. Still thinking about %s." % [l_name, deceased],
+		"Do you remember that thing %s used to do? I miss that." % deceased,
+		"%s would have loved today. I wish they were here." % deceased,
+		"I had a dream about %s last night. It felt so real." % deceased,
+		"I don't know how to be okay yet, %s. Give me time." % l_name,
+	]
+	return pool[randi() % pool.size()]

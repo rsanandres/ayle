@@ -58,7 +58,7 @@ func _ready() -> void:
 	_subtitle_label = Label.new()
 	_subtitle_label.text = "AI Agent Office Simulation"
 	_subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_subtitle_label.add_theme_font_size_override("font_size", 8)
+	_subtitle_label.add_theme_font_size_override("font_size", 9)
 	_subtitle_label.add_theme_color_override("font_color", Color(0.65, 0.65, 0.72))
 	vbox.add_child(_subtitle_label)
 
@@ -195,7 +195,7 @@ func _add_button(text: String, callback: Callable) -> void:
 	var btn := Button.new()
 	btn.text = text
 	btn.custom_minimum_size = Vector2(160, 24)
-	btn.add_theme_font_size_override("font_size", 8)
+	btn.add_theme_font_size_override("font_size", 9)
 
 	# Styled button
 	var normal_style := StyleBoxFlat.new()

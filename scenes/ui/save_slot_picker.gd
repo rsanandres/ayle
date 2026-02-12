@@ -56,7 +56,7 @@ func _rebuild() -> void:
 		_content.add_child(row)
 
 		var btn := Button.new()
-		btn.add_theme_font_size_override("font_size", 7)
+		btn.add_theme_font_size_override("font_size", 9)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 		if info.get("exists", false):
@@ -83,7 +83,7 @@ func _rebuild() -> void:
 		if info.get("exists", false):
 			var del_btn := Button.new()
 			del_btn.text = "X"
-			del_btn.add_theme_font_size_override("font_size", 7)
+			del_btn.add_theme_font_size_override("font_size", 9)
 			del_btn.custom_minimum_size = Vector2(18, 0)
 			del_btn.tooltip_text = "Delete save"
 			var del_style := StyleBoxFlat.new()
@@ -102,7 +102,7 @@ func _rebuild() -> void:
 
 	var close := Button.new()
 	close.text = "Cancel  [Esc]"
-	close.add_theme_font_size_override("font_size", 7)
+	close.add_theme_font_size_override("font_size", 9)
 	close.pressed.connect(func() -> void: visible = false)
 	_content.add_child(close)
 

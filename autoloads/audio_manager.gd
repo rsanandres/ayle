@@ -31,6 +31,10 @@ var _sfx_paths := {
 	"group_formed": "res://assets/audio/sfx/group_formed.wav",
 	"achievement": "res://assets/audio/sfx/achievement.wav",
 	"heartbreak": "res://assets/audio/sfx/heartbreak.wav",
+	"select": "res://assets/audio/sfx/select.wav",
+	"pause": "res://assets/audio/sfx/pause.wav",
+	"unpause": "res://assets/audio/sfx/unpause.wav",
+	"speed_change": "res://assets/audio/sfx/speed_change.wav",
 }
 
 var _music_player_a: AudioStreamPlayer = null
@@ -231,6 +235,21 @@ func _connect_signals() -> void:
 			"coffee_machine": play_sfx("coffee_pour", -6.0)
 			"desk": play_sfx("typing", -8.0)
 			"bookshelf": play_sfx("book_flip", -6.0)
+	)
+	EventBus.agent_selected.connect(func(_agent: Node2D) -> void:
+		play_sfx("select", -8.0)
+	)
+	EventBus.time_paused.connect(func() -> void:
+		play_sfx("pause", -6.0)
+	)
+	EventBus.time_resumed.connect(func() -> void:
+		play_sfx("unpause", -6.0)
+	)
+	EventBus.time_speed_changed.connect(func(_speed: int) -> void:
+		play_sfx("speed_change", -8.0)
+	)
+	EventBus.achievement_unlocked.connect(func(_id: String, _name: String) -> void:
+		play_sfx("achievement", -3.0)
 	)
 	EventBus.game_ready.connect(func() -> void:
 		play_music("calm")

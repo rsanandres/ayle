@@ -42,7 +42,7 @@ func _add_notification(text: String, color: Color) -> void:
 
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 7)
+	lbl.add_theme_font_size_override("font_size", 9)
 	lbl.add_theme_color_override("font_color", color)
 	lbl.add_theme_color_override("font_shadow_color", Color(0.05, 0.05, 0.08, 0.8))
 	lbl.add_theme_constant_override("shadow_offset_x", 1)

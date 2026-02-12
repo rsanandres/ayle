@@ -36,6 +36,7 @@ var _mood_timer: Timer = null
 var _current_mood: String = ""
 var _hover_tooltip: PanelContainer = null
 var _is_hovered: bool = false
+var _behavior_modifiers: Array[Dictionary] = []  # {type, target, duration_days, days_remaining, source}
 
 @onready var needs: AgentNeeds = $AgentNeeds
 @onready var heuristic_brain: HeuristicBrain = $HeuristicBrain
@@ -165,6 +166,11 @@ func die(cause: String = "natural causes") -> void:
 
 
 func witness_death(dead_name: String, cause: String) -> void:
+	## Full grief response: memory, mourning modifier, relationship-scaled impact.
+	var rel: RelationshipEntry = relationships.get_relationship(dead_name)
+	var closeness: float = clampf((rel.affinity + rel.familiarity) / 150.0, 0.0, 1.0)
+
+	# Core grief memory (protected from decay)
 	memory.add_memory(
 		MemoryEntry.MemoryType.OBSERVATION,
 		"%s witnessed %s passing away from %s. This is deeply sad." % [agent_name, dead_name, cause],
@@ -173,7 +179,62 @@ func witness_death(dead_name: String, cause: String) -> void:
 	memory.memories[-1].emotion = "grief"
 	memory.memories[-1].sentiment = -0.9
 	memory.memories[-1].decay_protected = true
-	needs.restore(NeedType.Type.SOCIAL, -30.0)
+
+	# Scale grief impact by relationship closeness
+	var social_penalty: float = -15.0 - closeness * 35.0  # -15 to -50
+	needs.restore(NeedType.Type.SOCIAL, social_penalty)
+	needs.restore(NeedType.Type.ENERGY, -10.0 * closeness)
+
+	# Close friends/partners enter mourning (behavior modifier)
+	if closeness > 0.3:
+		var mourning_days: int = 2 + int(closeness * 5.0)  # 2-7 days of mourning
+		add_behavior_modifier({
+			"type": "mourning",
+			"target": dead_name,
+			"duration_days": mourning_days,
+			"days_remaining": mourning_days,
+			"source": "grief",
+		})
+
+		# Partners get extra memories
+		if rel.relationship_status == RelationshipEntry.Status.DATING or rel.relationship_status == RelationshipEntry.Status.PARTNERS:
+			memory.add_memory(
+				MemoryEntry.MemoryType.OBSERVATION,
+				"%s lost their partner %s. The grief is overwhelming." % [agent_name, dead_name],
+				10.0, PackedStringArray([dead_name])
+			)
+			memory.memories[-1].emotion = "devastation"
+			memory.memories[-1].sentiment = -1.0
+			memory.memories[-1].decay_protected = true
+			rel.relationship_status = RelationshipEntry.Status.EX
+			rel.add_tag("deceased")
+
+
+func add_behavior_modifier(modifier: Dictionary) -> void:
+	_behavior_modifiers.append(modifier)
+
+
+func get_active_modifiers() -> Array[Dictionary]:
+	return _behavior_modifiers
+
+
+func _tick_behavior_modifiers() -> void:
+	## Called once per day — decrement modifier durations.
+	var to_remove: Array[int] = []
+	for i in range(_behavior_modifiers.size()):
+		_behavior_modifiers[i]["days_remaining"] = _behavior_modifiers[i]["days_remaining"] - 1
+		if _behavior_modifiers[i]["days_remaining"] <= 0:
+			to_remove.append(i)
+	# Remove expired (reverse order to preserve indices)
+	to_remove.reverse()
+	for idx in to_remove:
+		var mod: Dictionary = _behavior_modifiers[idx]
+		if mod.get("type", "") == "mourning":
+			memory.add_observation(
+				"%s feels the grief lifting, though they'll never forget %s." % [agent_name, mod.get("target", "someone")],
+				3.0
+			)
+		_behavior_modifiers.remove_at(idx)
 
 
 func _make_decision() -> void:
@@ -518,6 +579,10 @@ func _update_mood_indicator() -> void:
 
 func _determine_mood() -> String:
 	# Priority-ordered mood checks
+	# 0. Mourning (grief)
+	for mod in _behavior_modifiers:
+		if mod.get("type", "") == "mourning":
+			return "T_T"
 	# 1. Sick conditions
 	if not health_state.conditions.is_empty():
 		return "~"
@@ -575,6 +640,7 @@ func _has_romantic_bond() -> bool:
 
 func _get_mood_color(mood: String) -> Color:
 	match mood:
+		"T_T": return Color(0.5, 0.5, 0.7, 0.9)       # blue-grey — mourning
 		"♪": return Color(0.4, 0.9, 0.4, 0.95)       # green — happy
 		"♥": return Color(1.0, 0.45, 0.55, 0.95)      # pink-red — lovestruck
 		"zzZ": return Color(0.6, 0.65, 0.8, 0.85)     # blue-grey — tired
@@ -590,6 +656,7 @@ func _on_day_changed(day: int) -> void:
 	if is_dead or not health_state:
 		return
 	health_state.advance_day()
+	_tick_behavior_modifiers()
 	if health_state.health <= 0.0 or health_state.life_stage == LifeStage.Type.DEAD:
 		die("old age")
 	if health_state.life_stage == LifeStage.Type.SENIOR:
@@ -713,7 +780,7 @@ func _setup_hover_tooltip() -> void:
 	_hover_tooltip.add_theme_stylebox_override("panel", style)
 	var lbl := Label.new()
 	lbl.name = "TooltipLabel"
-	lbl.add_theme_font_size_override("font_size", 7)
+	lbl.add_theme_font_size_override("font_size", 9)
 	lbl.add_theme_color_override("font_color", Color(0.9, 0.88, 0.8))
 	_hover_tooltip.add_child(lbl)
 	add_child(_hover_tooltip)

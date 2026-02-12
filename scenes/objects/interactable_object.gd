@@ -12,12 +12,15 @@ extends StaticBody2D
 var _occupants: Array[Node2D] = []
 var _need_effects: Dictionary = {}  # NeedType.Type -> float
 var _use_indicator: Node2D = null
+var _hover_tooltip: PanelContainer = null
+var _is_hovered: bool = false
 
 
 func _ready() -> void:
 	if passive_effect_radius > 0.0:
 		EventBus.time_tick.connect(_on_passive_tick)
 	_setup_use_indicator()
+	_setup_hover_tooltip()
 
 
 func get_object_type() -> String:
@@ -93,3 +96,74 @@ func _update_use_indicator() -> void:
 func _process(_delta: float) -> void:
 	if _use_indicator and _use_indicator.visible:
 		_use_indicator.queue_redraw()
+	if _is_hovered and _hover_tooltip and _hover_tooltip.visible:
+		_hover_tooltip.global_position = global_position + Vector2(12, -30)
+
+
+func _setup_hover_tooltip() -> void:
+	_hover_tooltip = PanelContainer.new()
+	_hover_tooltip.visible = false
+	_hover_tooltip.z_index = 50
+	_hover_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.08, 0.12, 0.9)
+	style.border_color = Color(0.3, 0.35, 0.4, 0.8)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(2)
+	style.set_content_margin_all(3)
+	_hover_tooltip.add_theme_stylebox_override("panel", style)
+	var lbl := Label.new()
+	lbl.name = "TooltipLabel"
+	lbl.add_theme_font_size_override("font_size", 9)
+	lbl.add_theme_color_override("font_color", Color(0.9, 0.88, 0.8))
+	_hover_tooltip.add_child(lbl)
+	add_child(_hover_tooltip)
+
+	# Connect mouse events — we need an Area2D. Look for one or create one.
+	var area: Area2D = null
+	for child in get_children():
+		if child is Area2D:
+			area = child
+			break
+	if not area:
+		# Create a small detection area for mouse hover
+		area = Area2D.new()
+		area.name = "HoverArea"
+		area.input_pickable = true
+		var shape := CollisionShape2D.new()
+		var rect := RectangleShape2D.new()
+		rect.size = Vector2(24, 16)
+		shape.shape = rect
+		area.add_child(shape)
+		add_child(area)
+	area.mouse_entered.connect(_on_obj_mouse_entered)
+	area.mouse_exited.connect(_on_obj_mouse_exited)
+
+
+func _on_obj_mouse_entered() -> void:
+	_is_hovered = true
+	_update_obj_tooltip()
+	_hover_tooltip.visible = true
+
+
+func _on_obj_mouse_exited() -> void:
+	_is_hovered = false
+	_hover_tooltip.visible = false
+
+
+func _update_obj_tooltip() -> void:
+	var lbl: Label = _hover_tooltip.get_node("TooltipLabel")
+	if not lbl:
+		return
+	var text := display_name
+	# Occupancy
+	text += " (%d/%d)" % [_occupants.size(), max_occupants]
+	# Effects
+	if not _need_effects.is_empty():
+		var effects: PackedStringArray = []
+		for need in _need_effects:
+			var val: float = _need_effects[need]
+			var name_str: String = NeedType.to_string_name(need).to_lower()
+			effects.append("%s %+.0f" % [name_str, val])
+		text += "\n" + ", ".join(effects)
+	lbl.text = text

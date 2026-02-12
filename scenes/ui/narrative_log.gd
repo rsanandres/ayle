@@ -45,13 +45,13 @@ func _build_ui() -> void:
 
 	_events_btn = Button.new()
 	_events_btn.text = "Events"
-	_events_btn.add_theme_font_size_override("font_size", 8)
+	_events_btn.add_theme_font_size_override("font_size", 9)
 	_events_btn.pressed.connect(_show_events_tab)
 	_tab_bar.add_child(_events_btn)
 
 	_stories_btn = Button.new()
 	_stories_btn.text = "Stories"
-	_stories_btn.add_theme_font_size_override("font_size", 8)
+	_stories_btn.add_theme_font_size_override("font_size", 9)
 	_stories_btn.pressed.connect(_show_stories_tab)
 	_tab_bar.add_child(_stories_btn)
 
@@ -110,7 +110,7 @@ func _rebuild_display() -> void:
 func _add_event_label(entry: Dictionary) -> void:
 	var lbl := Label.new()
 	lbl.text = "[Day %d %s] %s" % [entry["day"], entry["timestamp"], entry["text"]]
-	lbl.add_theme_font_size_override("font_size", 7)
+	lbl.add_theme_font_size_override("font_size", 9)
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var importance: float = entry["importance"]
 	if importance >= 8.0:
@@ -127,7 +127,7 @@ func _build_stories_view() -> void:
 	if top.is_empty():
 		var empty := Label.new()
 		empty.text = "No stories yet. Events need time to develop into narratives."
-		empty.add_theme_font_size_override("font_size", 8)
+		empty.add_theme_font_size_override("font_size", 9)
 		empty.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_content_vbox.add_child(empty)
@@ -138,7 +138,7 @@ func _build_stories_view() -> void:
 
 		var title_lbl := Label.new()
 		title_lbl.text = "%s [%.0f]" % [sl.title, sl.drama_score]
-		title_lbl.add_theme_font_size_override("font_size", 8)
+		title_lbl.add_theme_font_size_override("font_size", 9)
 		if sl.drama_score >= 7.0:
 			title_lbl.add_theme_color_override("font_color", Color(1.0, 0.5, 0.3))
 		elif sl.drama_score >= 4.0:
@@ -150,13 +150,13 @@ func _build_stories_view() -> void:
 		if sl.summary != "":
 			var sum_lbl := Label.new()
 			sum_lbl.text = sl.summary
-			sum_lbl.add_theme_font_size_override("font_size", 7)
+			sum_lbl.add_theme_font_size_override("font_size", 9)
 			sum_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			box.add_child(sum_lbl)
 
 		var agents_lbl := Label.new()
 		agents_lbl.text = ", ".join(sl.involved_agents)
-		agents_lbl.add_theme_font_size_override("font_size", 7)
+		agents_lbl.add_theme_font_size_override("font_size", 9)
 		agents_lbl.add_theme_color_override("font_color", Color(0.5, 0.7, 0.9))
 		box.add_child(agents_lbl)
 

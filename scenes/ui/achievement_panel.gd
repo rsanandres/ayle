@@ -64,7 +64,7 @@ func _rebuild() -> void:
 
 		var icon := Label.new()
 		icon.text = "[x]" if a["unlocked"] else "[ ]"
-		icon.add_theme_font_size_override("font_size", 7)
+		icon.add_theme_font_size_override("font_size", 9)
 		icon.add_theme_color_override("font_color", Color(0.9, 0.8, 0.3) if a["unlocked"] else Color(0.4, 0.4, 0.45))
 		icon.custom_minimum_size = Vector2(20, 0)
 		row.add_child(icon)
@@ -75,19 +75,19 @@ func _rebuild() -> void:
 
 		var name_lbl := Label.new()
 		name_lbl.text = a["name"]
-		name_lbl.add_theme_font_size_override("font_size", 7)
+		name_lbl.add_theme_font_size_override("font_size", 9)
 		name_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9) if a["unlocked"] else Color(0.5, 0.5, 0.55))
 		info.add_child(name_lbl)
 
 		var desc_lbl := Label.new()
 		desc_lbl.text = a["description"]
-		desc_lbl.add_theme_font_size_override("font_size", 6)
+		desc_lbl.add_theme_font_size_override("font_size", 9)
 		desc_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
 		info.add_child(desc_lbl)
 
 	# Close button
 	var close := Button.new()
 	close.text = "Close"
-	close.add_theme_font_size_override("font_size", 7)
+	close.add_theme_font_size_override("font_size", 9)
 	close.pressed.connect(func() -> void: visible = false)
 	_content.add_child(close)

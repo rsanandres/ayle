@@ -45,7 +45,7 @@ func _show() -> void:
 	var submsg := Label.new()
 	submsg.text = "All agents have passed on."
 	submsg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	submsg.add_theme_font_size_override("font_size", 8)
+	submsg.add_theme_font_size_override("font_size", 9)
 	submsg.add_theme_color_override("font_color", Color(0.5, 0.5, 0.55))
 	vbox.add_child(submsg)
 
@@ -60,7 +60,7 @@ func _show() -> void:
 
 	var retry_btn := Button.new()
 	retry_btn.text = "Try Again"
-	retry_btn.add_theme_font_size_override("font_size", 8)
+	retry_btn.add_theme_font_size_override("font_size", 9)
 	retry_btn.pressed.connect(func() -> void:
 		get_tree().change_scene_to_file("res://scenes/main/main.tscn")
 	)
@@ -68,7 +68,7 @@ func _show() -> void:
 
 	var load_btn := Button.new()
 	load_btn.text = "Load Save"
-	load_btn.add_theme_font_size_override("font_size", 8)
+	load_btn.add_theme_font_size_override("font_size", 9)
 	load_btn.disabled = not SaveManager.has_save()
 	load_btn.pressed.connect(func() -> void:
 		SaveManager.load_game()
@@ -78,7 +78,7 @@ func _show() -> void:
 
 	var menu_btn := Button.new()
 	menu_btn.text = "Return to Menu"
-	menu_btn.add_theme_font_size_override("font_size", 8)
+	menu_btn.add_theme_font_size_override("font_size", 9)
 	menu_btn.pressed.connect(func() -> void:
 		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 	)

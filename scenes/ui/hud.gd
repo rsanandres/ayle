@@ -88,6 +88,9 @@ func _ready() -> void:
 	_story_feed.offset_bottom = 270
 	add_child(_story_feed)
 
+	# Persistent icon bar (bottom-center quick access)
+	_setup_icon_bar()
+
 	# Achievement toast listener
 	EventBus.achievement_unlocked.connect(_on_achievement_unlocked)
 
@@ -370,6 +373,87 @@ func _on_llm_backend_changed(backend_name: String) -> void:
 			_show_toast("Using bundled AI model")
 		"ollama":
 			_show_toast("Connected to Ollama")
+
+
+func _setup_icon_bar() -> void:
+	var bar := HBoxContainer.new()
+	bar.anchor_left = 0.5
+	bar.anchor_right = 0.5
+	bar.anchor_top = 1.0
+	bar.anchor_bottom = 1.0
+	bar.offset_left = -120
+	bar.offset_right = 120
+	bar.offset_top = -22
+	bar.offset_bottom = -4
+	bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	bar.add_theme_constant_override("separation", 3)
+	bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	add_child(bar)
+
+	# Background for the bar
+	var bar_bg := PanelContainer.new()
+	var bar_style := StyleBoxFlat.new()
+	bar_style.bg_color = Color(0.08, 0.08, 0.12, 0.8)
+	bar_style.border_color = Color(0.25, 0.25, 0.3, 0.6)
+	bar_style.set_border_width_all(1)
+	bar_style.set_corner_radius_all(3)
+	bar_style.set_content_margin_all(2)
+	bar_bg.add_theme_stylebox_override("panel", bar_style)
+	bar_bg.anchor_left = 0.5
+	bar_bg.anchor_right = 0.5
+	bar_bg.anchor_top = 1.0
+	bar_bg.anchor_bottom = 1.0
+	bar_bg.offset_left = -125
+	bar_bg.offset_right = 125
+	bar_bg.offset_top = -24
+	bar_bg.offset_bottom = -2
+	bar_bg.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	bar_bg.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bar_bg)
+	# Move bar on top of background
+	move_child(bar, get_child_count() - 1)
+
+	_add_icon_btn(bar, "||", "Pause [Space]", func() -> void: TimeManager.toggle_pause())
+	_add_icon_btn(bar, "1x", "Speed 1x", func() -> void: TimeManager.set_speed(1))
+	_add_icon_btn(bar, "2x", "Speed 2x", func() -> void: TimeManager.set_speed(2))
+	_add_icon_btn(bar, "3x", "Speed 3x", func() -> void: TimeManager.set_speed(3))
+
+	var sep1 := VSeparator.new()
+	sep1.custom_minimum_size = Vector2(2, 0)
+	bar.add_child(sep1)
+
+	_add_icon_btn(bar, "GOD", "God Mode [Tab]", func() -> void: _toggle_god_mode())
+	_add_icon_btn(bar, "LOG", "Narrative Log [L]", func() -> void: _narrative_log.toggle())
+	_add_icon_btn(bar, "REL", "Relationships [R]", func() -> void: _relationship_web.toggle())
+
+	var sep2 := VSeparator.new()
+	sep2.custom_minimum_size = Vector2(2, 0)
+	bar.add_child(sep2)
+
+	_add_icon_btn(bar, "ACH", "Achievements", func() -> void: _toggle_achievements())
+	_add_icon_btn(bar, "SET", "Settings", func() -> void: _toggle_settings())
+
+
+func _add_icon_btn(parent: HBoxContainer, text: String, tooltip: String, callback: Callable) -> void:
+	var btn := Button.new()
+	btn.text = text
+	btn.tooltip_text = tooltip
+	btn.custom_minimum_size = Vector2(24, 16)
+	btn.add_theme_font_size_override("font_size", 9)
+	btn.pressed.connect(callback)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.15, 0.15, 0.2, 0.6)
+	style.set_corner_radius_all(2)
+	style.set_content_margin_all(1)
+	btn.add_theme_stylebox_override("normal", style)
+	var hover_style := StyleBoxFlat.new()
+	hover_style.bg_color = Color(0.25, 0.25, 0.35, 0.8)
+	hover_style.set_corner_radius_all(2)
+	hover_style.set_content_margin_all(1)
+	btn.add_theme_stylebox_override("hover", hover_style)
+	parent.add_child(btn)
 
 
 func _setup_pause_overlay() -> void:

@@ -60,7 +60,77 @@ func _ready() -> void:
 
 func _try_load_save() -> void:
 	var slot: int = SaveManager.current_slot
+	# Get summary before loading (reads save file)
+	var summary: String = SaveManager.get_load_summary(slot)
 	SaveManager.load_game(slot)
+	# Show "While you were away" overlay if there's meaningful info
+	if summary != "":
+		_show_load_summary(summary)
+
+
+func _show_load_summary(summary: String) -> void:
+	var overlay := CanvasLayer.new()
+	overlay.layer = 92
+	add_child(overlay)
+
+	var bg := ColorRect.new()
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0.05, 0.05, 0.1, 0.75)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.add_child(bg)
+
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.15, 0.95)
+	style.border_color = Color(0.4, 0.5, 0.6, 0.8)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(12)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.custom_minimum_size = Vector2(220, 0)
+	center.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Welcome Back"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 12)
+	title.add_theme_color_override("font_color", Color(0.95, 0.9, 0.7))
+	vbox.add_child(title)
+
+	var sep := HSeparator.new()
+	vbox.add_child(sep)
+
+	var content := Label.new()
+	content.text = summary
+	content.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_theme_font_size_override("font_size", 9)
+	content.add_theme_color_override("font_color", Color(0.8, 0.8, 0.85))
+	vbox.add_child(content)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 4)
+	vbox.add_child(spacer)
+
+	var btn := Button.new()
+	btn.text = "Continue"
+	btn.add_theme_font_size_override("font_size", 9)
+	btn.pressed.connect(func() -> void:
+		overlay.queue_free()
+	)
+	vbox.add_child(btn)
+
+	# Fade in
+	panel.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(panel, "modulate:a", 1.0, 0.5)
 
 
 func _setup_expanded_mode() -> void:

@@ -45,7 +45,7 @@ func _build_ui() -> void:
 	_vbox.add_child(_name_label)
 
 	_personality_label = Label.new()
-	_personality_label.add_theme_font_size_override("font_size", 8)
+	_personality_label.add_theme_font_size_override("font_size", 9)
 	_personality_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_vbox.add_child(_personality_label)
 
@@ -85,7 +85,7 @@ func _build_ui() -> void:
 	_vbox.add_child(grp_title)
 
 	_groups_label = Label.new()
-	_groups_label.add_theme_font_size_override("font_size", 8)
+	_groups_label.add_theme_font_size_override("font_size", 9)
 	_groups_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_vbox.add_child(_groups_label)
 
@@ -95,7 +95,7 @@ func _build_ui() -> void:
 	_vbox.add_child(sl_title)
 
 	_storylines_label = Label.new()
-	_storylines_label.add_theme_font_size_override("font_size", 7)
+	_storylines_label.add_theme_font_size_override("font_size", 9)
 	_storylines_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_vbox.add_child(_storylines_label)
 
@@ -107,7 +107,7 @@ func _build_ui() -> void:
 	_vbox.add_child(mem_title)
 
 	_memory_label = Label.new()
-	_memory_label.add_theme_font_size_override("font_size", 7)
+	_memory_label.add_theme_font_size_override("font_size", 9)
 	_memory_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_vbox.add_child(_memory_label)
 
@@ -195,7 +195,7 @@ func _rebuild_need_bars() -> void:
 		var lbl := Label.new()
 		lbl.text = NeedType.to_string_name(need).substr(0, 4).capitalize()
 		lbl.custom_minimum_size.x = 35
-		lbl.add_theme_font_size_override("font_size", 8)
+		lbl.add_theme_font_size_override("font_size", 9)
 		var bar := ProgressBar.new()
 		bar.min_value = 0
 		bar.max_value = Config.NEED_MAX
@@ -217,7 +217,7 @@ func _rebuild_relationships() -> void:
 	if all_rels.is_empty():
 		var empty_lbl := Label.new()
 		empty_lbl.text = "(no relationships)"
-		empty_lbl.add_theme_font_size_override("font_size", 7)
+		empty_lbl.add_theme_font_size_override("font_size", 9)
 		empty_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.55))
 		_relationships_container.add_child(empty_lbl)
 		return
@@ -238,7 +238,7 @@ func _rebuild_relationships() -> void:
 		row.add_theme_constant_override("separation", 2)
 		# Status icon
 		var icon := Label.new()
-		icon.add_theme_font_size_override("font_size", 7)
+		icon.add_theme_font_size_override("font_size", 9)
 		match rel.relationship_status:
 			RelationshipEntry.Status.DATING, RelationshipEntry.Status.PARTNERS:
 				icon.text = "♥"
@@ -265,7 +265,7 @@ func _rebuild_relationships() -> void:
 		var name_lbl := Label.new()
 		name_lbl.text = rel_name
 		name_lbl.custom_minimum_size.x = 40
-		name_lbl.add_theme_font_size_override("font_size", 7)
+		name_lbl.add_theme_font_size_override("font_size", 9)
 		row.add_child(name_lbl)
 		# Affinity bar (centered on 0, range -100 to 100)
 		var bar_bg := ColorRect.new()

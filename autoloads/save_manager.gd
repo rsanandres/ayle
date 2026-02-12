@@ -404,3 +404,64 @@ func _load_last_used_slot() -> void:
 	if config.load(LAST_SLOT_PATH) == OK:
 		last_used_slot = config.get_value("save", "last_used_slot", 0)
 		current_slot = last_used_slot
+
+
+func get_load_summary(slot: int = -1) -> String:
+	## Returns a "While you were away..." summary of the save state.
+	if slot < 0:
+		slot = current_slot
+	var data := _try_load_file(_slot_path(slot))
+	if data.is_empty():
+		return ""
+
+	var lines: PackedStringArray = []
+
+	# Day count
+	var game_time: float = data.get("game_time", 480.0)
+	var day: int = int(game_time / 1440.0)
+	lines.append("Day %d" % day)
+
+	# Agent count
+	var agents_data: Array = data.get("agents", [])
+	lines.append("%d agents in the office" % agents_data.size())
+
+	# Groups
+	var groups_data: Array = data.get("groups", [])
+	if not groups_data.is_empty():
+		var group_names: PackedStringArray = []
+		for gd in groups_data:
+			var gname: String = gd.get("group_name", gd.get("name", ""))
+			if gname != "":
+				group_names.append(gname)
+		if not group_names.is_empty():
+			lines.append("Groups: %s" % ", ".join(group_names))
+
+	# Active storylines
+	var storylines_data: Array = data.get("storylines", [])
+	var active_stories: int = 0
+	var top_story: String = ""
+	for sld in storylines_data:
+		if sld.get("is_active", false):
+			active_stories += 1
+			if top_story == "" or sld.get("drama_score", 0.0) > 5.0:
+				top_story = sld.get("title", "")
+	if active_stories > 0:
+		var story_text := "%d active storyline%s" % [active_stories, "s" if active_stories > 1 else ""]
+		if top_story != "":
+			story_text += " — \"%s\"" % top_story
+		lines.append(story_text)
+
+	# Scan for interesting relationship states
+	var dating_pairs: int = 0
+	for agent_data in agents_data:
+		var rels: Dictionary = agent_data.get("relationships", {})
+		for other_name in rels:
+			var rel_data: Dictionary = rels[other_name]
+			var status: int = int(rel_data.get("relationship_status", 0))
+			if status == 3 or status == 4:  # DATING or PARTNERS
+				dating_pairs += 1
+	dating_pairs = dating_pairs / 2  # Each pair counted twice
+	if dating_pairs > 0:
+		lines.append("%d romantic couple%s" % [dating_pairs, "s" if dating_pairs > 1 else ""])
+
+	return "\n".join(lines)

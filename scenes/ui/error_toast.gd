@@ -15,7 +15,7 @@ func _ready() -> void:
 	add_theme_stylebox_override("panel", style)
 
 	_label = Label.new()
-	_label.add_theme_font_size_override("font_size", 7)
+	_label.add_theme_font_size_override("font_size", 9)
 	_label.add_theme_color_override("font_color", Color(0.95, 0.8, 0.8))
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_label)

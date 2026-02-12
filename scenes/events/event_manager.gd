@@ -219,6 +219,24 @@ func _consequence_heated_argument(affected: Array) -> void:
 	agent_b.memory.memories[-1].emotion = "anger"
 	agent_b.memory.memories[-1].sentiment = -0.7
 
+	# Avoidance behavior modifiers — they avoid each other for a few days
+	if agent_a.has_method("add_behavior_modifier"):
+		agent_a.add_behavior_modifier({
+			"type": "avoidance",
+			"target": agent_b.agent_name,
+			"duration_days": 3,
+			"days_remaining": 3,
+			"source": "argument",
+		})
+	if agent_b.has_method("add_behavior_modifier"):
+		agent_b.add_behavior_modifier({
+			"type": "avoidance",
+			"target": agent_a.agent_name,
+			"duration_days": 3,
+			"days_remaining": 3,
+			"source": "argument",
+		})
+
 	EventBus.narrative_event.emit(
 		"%s and %s had a bitter argument — their relationship took a hit." % [agent_a.agent_name, agent_b.agent_name],
 		[agent_a.agent_name, agent_b.agent_name], 7.0
@@ -267,6 +285,16 @@ func _consequence_promotion_reactions(affected: Array) -> void:
 	var promoted_agent: Node2D = affected[0]
 	if not is_instance_valid(promoted_agent):
 		return
+
+	# Promoted agent gets a productivity boost modifier
+	if promoted_agent.has_method("add_behavior_modifier"):
+		promoted_agent.add_behavior_modifier({
+			"type": "motivated",
+			"target": "",
+			"duration_days": 5,
+			"days_remaining": 5,
+			"source": "promotion",
+		})
 
 	for agent in AgentManager.agents:
 		if not is_instance_valid(agent) or agent == promoted_agent:

@@ -25,6 +25,10 @@ static func generate_all_sfx() -> Dictionary:
 		"group_formed": _gen_group(),
 		"achievement": _gen_achievement(),
 		"heartbreak": _gen_heartbreak(),
+		"select": _gen_select(),
+		"pause": _gen_pause(),
+		"unpause": _gen_unpause(),
+		"speed_change": _gen_speed_tick(),
 	}
 
 
@@ -360,6 +364,73 @@ static func _gen_heartbreak() -> AudioStreamWAV:
 		var val: float = sin(TAU * freq * t) * env * 0.35
 		# Add dissonant second voice
 		val += sin(TAU * (freq - 15.0) * t) * env * 0.2
+		_write_sample(data, i, val)
+
+	return _make_wav(data, samples)
+
+
+static func _gen_select() -> AudioStreamWAV:
+	## Soft click with a tiny pitch rise — agent selected.
+	var duration := 0.06
+	var samples := int(duration * SAMPLE_RATE)
+	var data := PackedByteArray()
+	data.resize(samples * 2)
+
+	for i in range(samples):
+		var t: float = float(i) / SAMPLE_RATE
+		var env: float = (1.0 - t / duration) * (1.0 - t / duration)
+		var freq: float = 1200.0 + t * 3000.0
+		var val: float = sin(TAU * freq * t) * env * 0.25
+		_write_sample(data, i, val)
+
+	return _make_wav(data, samples)
+
+
+static func _gen_pause() -> AudioStreamWAV:
+	## Quick descending tone — time paused.
+	var duration := 0.12
+	var samples := int(duration * SAMPLE_RATE)
+	var data := PackedByteArray()
+	data.resize(samples * 2)
+
+	for i in range(samples):
+		var t: float = float(i) / SAMPLE_RATE
+		var env: float = maxf(0.0, 1.0 - t / duration)
+		var freq: float = 600.0 - t * 2000.0
+		var val: float = sin(TAU * freq * t) * env * 0.25
+		_write_sample(data, i, val)
+
+	return _make_wav(data, samples)
+
+
+static func _gen_unpause() -> AudioStreamWAV:
+	## Quick ascending tone — time resumed.
+	var duration := 0.1
+	var samples := int(duration * SAMPLE_RATE)
+	var data := PackedByteArray()
+	data.resize(samples * 2)
+
+	for i in range(samples):
+		var t: float = float(i) / SAMPLE_RATE
+		var env: float = maxf(0.0, 1.0 - t / duration)
+		var freq: float = 400.0 + t * 2500.0
+		var val: float = sin(TAU * freq * t) * env * 0.25
+		_write_sample(data, i, val)
+
+	return _make_wav(data, samples)
+
+
+static func _gen_speed_tick() -> AudioStreamWAV:
+	## Tiny tick sound for speed change.
+	var duration := 0.04
+	var samples := int(duration * SAMPLE_RATE)
+	var data := PackedByteArray()
+	data.resize(samples * 2)
+
+	for i in range(samples):
+		var t: float = float(i) / SAMPLE_RATE
+		var env: float = (1.0 - t / duration) * (1.0 - t / duration)
+		var val: float = sin(TAU * 1800.0 * t) * env * 0.2
 		_write_sample(data, i, val)
 
 	return _make_wav(data, samples)

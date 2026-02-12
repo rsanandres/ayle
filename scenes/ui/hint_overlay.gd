@@ -34,7 +34,7 @@ func _ready() -> void:
 	_panel.add_child(vbox)
 
 	_label = Label.new()
-	_label.add_theme_font_size_override("font_size", 7)
+	_label.add_theme_font_size_override("font_size", 9)
 	_label.add_theme_color_override("font_color", Color(0.85, 0.9, 0.95))
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_label.custom_minimum_size = Vector2(260, 0)
@@ -47,13 +47,13 @@ func _ready() -> void:
 
 	_dismiss_btn = Button.new()
 	_dismiss_btn.text = "Got it"
-	_dismiss_btn.add_theme_font_size_override("font_size", 7)
+	_dismiss_btn.add_theme_font_size_override("font_size", 9)
 	_dismiss_btn.pressed.connect(_dismiss)
 	btn_row.add_child(_dismiss_btn)
 
 	_dont_show_btn = Button.new()
 	_dont_show_btn.text = "Don't show again"
-	_dont_show_btn.add_theme_font_size_override("font_size", 6)
+	_dont_show_btn.add_theme_font_size_override("font_size", 9)
 	_dont_show_btn.pressed.connect(func() -> void:
 		TutorialManager.dismiss_all()
 		_dismiss()
