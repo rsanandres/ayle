@@ -223,9 +223,7 @@ func _reclassify_tiers() -> void:
 		view_radius = max(viewport.get_visible_rect().size.x, viewport.get_visible_rect().size.y) / zoom
 
 	# Selected agent is always active
-	var selected: Node2D = null
-	if GameManager.has_method("get_selected_agent"):
-		selected = GameManager.get_selected_agent()
+	var selected: Node2D = GameManager.selected_agent
 
 	for agent in agents:
 		if not is_instance_valid(agent):

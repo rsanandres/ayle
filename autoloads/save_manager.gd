@@ -3,19 +3,23 @@ extends Node
 ## V3: 5 save slots, .bak backup, corruption recovery.
 
 const SAVE_DIR := "user://saves/"
-const AUTO_SAVE_INTERVAL_DAYS := 5
+var AUTO_SAVE_INTERVAL_DAYS: int = 5
 const SAVE_VERSION := 3
 const MAX_SLOTS := 5
 const LEGACY_PATH := "user://ayle_save.json"
+const LAST_SLOT_PATH := "user://last_slot.cfg"
 
 var _last_auto_save_day: int = 0
 var current_slot: int = 0  # Active save slot
+var last_used_slot: int = 0  # Most recently used slot (persisted)
+var skip_auto_load: bool = false  # Set by main menu for "New Sandbox"
 
 
 func _ready() -> void:
 	EventBus.day_changed.connect(_on_day_changed)
 	_ensure_save_dir()
 	_migrate_legacy_save()
+	_load_last_used_slot()
 
 
 func save_game(slot: int = -1) -> bool:
@@ -48,6 +52,8 @@ func save_game(slot: int = -1) -> bool:
 	file.store_string(json_str)
 	file.close()
 	current_slot = slot
+	last_used_slot = slot
+	_save_last_used_slot()
 	print("[SaveManager] Game saved to slot %d (v%d)" % [slot, SAVE_VERSION])
 	EventBus.narrative_event.emit("Game saved (slot %d)." % (slot + 1), [], 1.0)
 	return true
@@ -73,6 +79,8 @@ func load_game(slot: int = -1) -> bool:
 
 	_deserialize_world(data)
 	current_slot = slot
+	last_used_slot = slot
+	_save_last_used_slot()
 	var version: int = data.get("version", 1)
 	print("[SaveManager] Game loaded from slot %d (v%d)" % [slot, version])
 	EventBus.narrative_event.emit("Game loaded (slot %d)." % (slot + 1), [], 1.0)
@@ -204,14 +212,20 @@ func _serialize_world() -> Dictionary:
 
 		data["agents"].append(agent_data)
 
+	data["last_auto_save_day"] = _last_auto_save_day
+
 	var world := get_tree().get_first_node_in_group("world")
 	if world:
 		for obj in world.get_all_objects():
-			data["objects"].append({
+			var obj_data := {
 				"type": obj.object_type,
 				"display_name": obj.display_name,
 				"position": {"x": obj.position.x, "y": obj.position.y},
-			})
+			}
+			# Serialize object-specific state
+			if obj.object_type == "radio":
+				obj_data["playing"] = obj._playing
+			data["objects"].append(obj_data)
 
 	for group in GroupManager.groups:
 		data["groups"].append(group.to_dict())
@@ -301,6 +315,92 @@ func _deserialize_world(data: Dictionary) -> void:
 			var entry := StoryEntry.from_dict(fd)
 			Narrator.feed.append(entry)
 
+	# Restore _last_auto_save_day from save data
+	_last_auto_save_day = int(data.get("last_auto_save_day", 0))
+
+	# Restore objects
+	var objects_data: Array = data.get("objects", [])
 	var world := get_tree().get_first_node_in_group("world")
+	if world and not objects_data.is_empty():
+		# Remove existing objects
+		var existing_objects: Array = world.get_all_objects().duplicate()
+		for obj in existing_objects:
+			world.remove_object(obj)
+
+		# Recreate objects from save data
+		for obj_data in objects_data:
+			var obj_type: String = obj_data.get("type", "")
+			if obj_type == "":
+				continue
+			var obj := _create_object_from_type(obj_type)
+			if not obj:
+				push_warning("SaveManager: Failed to create object type: %s" % obj_type)
+				continue
+			var pos_data: Dictionary = obj_data.get("position", {})
+			var pos := Vector2(pos_data.get("x", 100.0), pos_data.get("y", 100.0))
+			world.add_object(obj, pos)
+			# Restore object-specific state
+			if obj_type == "radio" and obj_data.has("playing"):
+				var playing: bool = obj_data.get("playing", true)
+				obj._playing = playing
+				if playing:
+					obj.passive_need_effects = {NeedType.Type.SOCIAL: 0.5}
+				else:
+					obj.passive_need_effects = {}
+
 	if world and world.has_method("resize_for_agents"):
 		world.resize_for_agents(AgentManager.agents.size())
+
+
+func _create_object_from_type(obj_type: String) -> InteractableObject:
+	## Creates an InteractableObject from a type string, matching god_toolbar logic.
+	var script_path := "res://scenes/objects/%s.gd" % obj_type
+	if not FileAccess.file_exists(script_path):
+		return null
+	var obj := StaticBody2D.new()
+	obj.collision_layer = 4
+	obj.collision_mask = 0
+	var script := load(script_path)
+	obj.set_script(script)
+	var sprite := Sprite2D.new()
+	sprite.name = "Sprite2D"
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	obj.add_child(sprite)
+	var shape := CollisionShape2D.new()
+	shape.name = "CollisionShape2D"
+	var rect_shape := RectangleShape2D.new()
+	rect_shape.size = Vector2(24, 16)
+	shape.shape = rect_shape
+	obj.add_child(shape)
+	return obj
+
+
+func get_most_recent_slot() -> int:
+	## Returns the slot with the newest save file modification time.
+	var best_slot: int = 0
+	var best_time: String = ""
+	for i in range(MAX_SLOTS):
+		var path := _slot_path(i)
+		if not FileAccess.file_exists(path):
+			continue
+		var data := _try_load_file(path)
+		if data.is_empty():
+			continue
+		var save_time: String = data.get("save_time", "")
+		if save_time > best_time:
+			best_time = save_time
+			best_slot = i
+	return best_slot
+
+
+func _save_last_used_slot() -> void:
+	var config := ConfigFile.new()
+	config.set_value("save", "last_used_slot", last_used_slot)
+	config.save(LAST_SLOT_PATH)
+
+
+func _load_last_used_slot() -> void:
+	var config := ConfigFile.new()
+	if config.load(LAST_SLOT_PATH) == OK:
+		last_used_slot = config.get_value("save", "last_used_slot", 0)
+		current_slot = last_used_slot

@@ -91,10 +91,15 @@ func _add_button(text: String, callback: Callable) -> void:
 
 
 func _on_new_sandbox() -> void:
+	SaveManager.skip_auto_load = true
 	get_tree().change_scene_to_file("res://scenes/main/main.tscn")
 
 
 func _on_continue() -> void:
+	# Set the current slot to the most recent save before transitioning
+	var recent_slot: int = SaveManager.get_most_recent_slot()
+	SaveManager.current_slot = recent_slot
+	SaveManager.skip_auto_load = false
 	get_tree().change_scene_to_file("res://scenes/main/main.tscn")
 	# Save will be loaded by main.gd _ready
 

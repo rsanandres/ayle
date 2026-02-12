@@ -43,13 +43,15 @@ func _ready() -> void:
 			TimeManager.toggle_pause()
 	)
 
-	# Try loading save on startup
-	if SaveManager.has_save():
+	# Try loading save on startup (unless "New Sandbox" was chosen)
+	if SaveManager.has_save() and not SaveManager.skip_auto_load:
 		call_deferred("_try_load_save")
+	SaveManager.skip_auto_load = false
 
 
 func _try_load_save() -> void:
-	SaveManager.load_game()
+	var slot: int = SaveManager.current_slot
+	SaveManager.load_game(slot)
 
 
 func _setup_expanded_mode() -> void:

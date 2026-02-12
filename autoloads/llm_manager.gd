@@ -20,6 +20,9 @@ var _health_timer: float = 0.0
 var _queue: Array[Dictionary] = []
 
 
+var _preferred_backend: String = "auto"  # "auto", "bundled", "ollama", "heuristic"
+
+
 func _ready() -> void:
 	# Create bundled backend
 	_bundled_backend = LLMBackendBundled.new()
@@ -33,23 +36,39 @@ func _ready() -> void:
 	add_child(_ollama_backend)
 	_ollama_backend.status_changed.connect(_on_ollama_status_changed)
 
-	# Configure Ollama with default settings
+	# Read LLM settings from SettingsManager (loaded before LLMManager)
+	var ollama_url: String = SettingsManager.ollama_url
+	var ollama_model: String = SettingsManager.ollama_model
+	_preferred_backend = SettingsManager.llm_backend
+
+	# Configure Ollama with user settings
 	_ollama_backend.configure({
-		"name": "local",
-		"url": "http://localhost:11434",
-		"model": "smollm2:1.7b",
+		"name": "ollama",
+		"url": ollama_url,
+		"model": ollama_model,
 		"temperature": 0.7,
 		"num_predict": 150,
 	})
 
-	# Try to load bundled model
-	var bundled_path := _get_bundled_model_path()
-	if bundled_path != "":
-		model_loading.emit(true)
-		_bundled_backend.load_model(bundled_path)
-	else:
-		# No bundled model, go straight to Ollama check
+	# Connect to SettingsManager so changes are applied at runtime
+	SettingsManager.settings_changed.connect(_on_settings_changed)
+
+	# Try to load bundled model (unless user explicitly chose ollama/heuristic)
+	if _preferred_backend == "heuristic":
+		# Skip all LLM backends, stay offline (heuristic fallback in AgentBrain)
+		print("[LLMManager] Backend preference: heuristic — skipping LLM backends")
+	elif _preferred_backend == "ollama":
+		# Skip bundled, go straight to Ollama
 		_ollama_backend.check_health()
+	else:
+		# "auto" or "bundled": try bundled first, then Ollama
+		var bundled_path := _get_bundled_model_path()
+		if bundled_path != "":
+			model_loading.emit(true)
+			_bundled_backend.load_model(bundled_path)
+		else:
+			# No bundled model, go straight to Ollama check
+			_ollama_backend.check_health()
 
 
 func _process(delta: float) -> void:
@@ -111,19 +130,46 @@ func _update_active_backend() -> void:
 	var was_available := is_available
 	var old_name := active_backend_name
 
-	# Priority: bundled > ollama
-	if _bundled_backend.is_available:
-		_active_backend = _bundled_backend
-		active_backend_name = "bundled"
-		is_available = true
-	elif _ollama_backend.is_available:
-		_active_backend = _ollama_backend
-		active_backend_name = "ollama"
-		is_available = true
-	else:
+	# Respect user backend preference
+	if _preferred_backend == "heuristic":
+		# User wants heuristic only — no LLM backend
 		_active_backend = null
-		active_backend_name = "none"
+		active_backend_name = "heuristic"
 		is_available = false
+	elif _preferred_backend == "bundled":
+		# Only use bundled
+		if _bundled_backend.is_available:
+			_active_backend = _bundled_backend
+			active_backend_name = "bundled"
+			is_available = true
+		else:
+			_active_backend = null
+			active_backend_name = "none"
+			is_available = false
+	elif _preferred_backend == "ollama":
+		# Only use Ollama
+		if _ollama_backend.is_available:
+			_active_backend = _ollama_backend
+			active_backend_name = "ollama"
+			is_available = true
+		else:
+			_active_backend = null
+			active_backend_name = "none"
+			is_available = false
+	else:
+		# "auto": priority bundled > ollama
+		if _bundled_backend.is_available:
+			_active_backend = _bundled_backend
+			active_backend_name = "bundled"
+			is_available = true
+		elif _ollama_backend.is_available:
+			_active_backend = _ollama_backend
+			active_backend_name = "ollama"
+			is_available = true
+		else:
+			_active_backend = null
+			active_backend_name = "none"
+			is_available = false
 
 	if is_available != was_available:
 		ollama_status_changed.emit(is_available)
@@ -141,6 +187,16 @@ func _on_bundled_status_changed(available: bool) -> void:
 
 
 func _on_ollama_status_changed(_available: bool) -> void:
+	_update_active_backend()
+
+
+func _on_settings_changed() -> void:
+	var new_url: String = SettingsManager.ollama_url
+	var new_model: String = SettingsManager.ollama_model
+	var new_backend: String = SettingsManager.llm_backend
+
+	_preferred_backend = new_backend
+	configure_ollama(new_url, new_model)
 	_update_active_backend()
 
 

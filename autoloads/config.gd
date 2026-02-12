@@ -45,7 +45,7 @@ const CONVERSATION_LINE_DURATION := 3.0  # seconds to show each speech bubble
 const OFFICE_AREA_PER_AGENT := 3000  # px^2 per agent for dynamic sizing
 const OFFICE_MAX_WIDTH := 960
 const OFFICE_MAX_HEIGHT := 640
-const MAX_AGENTS_EXPANDED := 50
+var MAX_AGENTS_EXPANDED: int = 50
 
 # Tiered think scheduling (Phase 2)
 const THINK_TIER_ACTIVE_INTERVAL := 3.0   # near camera/selected

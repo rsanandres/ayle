@@ -30,6 +30,8 @@ var auto_pause_on_focus_loss: bool = true
 func _ready() -> void:
 	load_settings()
 	_apply_audio()
+	# Apply game settings after all autoloads are initialized
+	call_deferred("_apply_game_settings")
 
 
 func load_settings() -> void:
@@ -105,6 +107,18 @@ func set_fullscreen(enabled: bool) -> void:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	else:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+
+
+func _apply_game_settings() -> void:
+	## Apply game settings to other autoloads. Called deferred so all singletons exist.
+	# Apply default speed to TimeManager
+	TimeManager.set_speed(default_speed)
+
+	# Apply auto-save interval to SaveManager
+	SaveManager.AUTO_SAVE_INTERVAL_DAYS = auto_save_interval
+
+	# Apply max agents to Config (used by AgentManager.spawn methods)
+	Config.MAX_AGENTS_EXPANDED = max_agents
 
 
 func _apply_audio() -> void:

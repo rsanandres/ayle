@@ -44,6 +44,7 @@ var _music_cache: Dictionary = {}
 
 func _ready() -> void:
 	_setup_buses()
+	_apply_saved_volumes()
 	_setup_music_players()
 	_setup_sfx_pool()
 	_connect_signals()
@@ -108,6 +109,27 @@ func play_sfx(sfx_name: String, volume_db: float = 0.0) -> void:
 	player.volume_db = volume_db
 	player.play()
 	_sfx_pool_idx = (_sfx_pool_idx + 1) % SFX_POOL_SIZE
+
+
+func _apply_saved_volumes() -> void:
+	## Apply saved volume settings from SettingsManager after buses are created.
+	var master: float = SettingsManager.master_volume
+	var music: float = SettingsManager.music_volume
+	var sfx: float = SettingsManager.sfx_volume
+	_set_bus_volume_linear("Master", master)
+	_set_bus_volume_linear("Music", music)
+	_set_bus_volume_linear("SFX", sfx)
+
+
+func _set_bus_volume_linear(bus_name: String, linear: float) -> void:
+	var idx: int = AudioServer.get_bus_index(bus_name)
+	if idx == -1:
+		return
+	if linear <= 0.01:
+		AudioServer.set_bus_mute(idx, true)
+	else:
+		AudioServer.set_bus_mute(idx, false)
+		AudioServer.set_bus_volume_db(idx, linear_to_db(linear))
 
 
 func _setup_buses() -> void:
