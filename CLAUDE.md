@@ -4,63 +4,69 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Ayle — AI Agent Office Simulation. A top-down 2D pixel art game where AI agents with distinct personalities live together in an office. The player observes and rearranges the environment as emergent social behavior unfolds. Built with Godot 4 (GDScript) and Ollama for local LLM inference.
+Ayle — AI Agent Office Simulation. A top-down 2D pixel art game where AI agents with distinct personalities live together in an office. The player observes and rearranges the environment as emergent social behavior unfolds. Built with Godot 4.6 (GDScript) with bundled LLM (GDLlama) + Ollama fallback.
 
 ## Build & Development
 
 - **Engine**: Godot 4.6 (GDScript)
-- **LLM Backend**: Ollama (localhost:11434) with smollm2:1.7b (default)
+- **LLM Backend**: Bundled (GDLlama GDExtension) → Ollama → heuristic fallback
 - Open project in Godot editor: `godot --editor project.godot`
 - Run from CLI: `godot --path /Users/raph/Documents/ayle`
+- Parse check: `godot --headless -e --quit-after 5`
 
 ## Architecture
 
-### Autoloads (singletons)
-- `EventBus` — Global signal bus decoupling all systems (~40 signals)
-- `TimeManager` — Game clock (1 real sec = 1 game minute at 1x), pause/1x/2x/3x, day tracking
-- `Config` — Constants (need decay rates, speeds, thresholds, conversation settings)
-- `AgentManager` — Agent registry, staggered round-robin think ticks, spawn/remove
-- `LLMManager` — Async HTTP queue to Ollama with health checking
+### Autoloads (17 singletons, load order matters)
+- `EventBus` — Global signal bus (~40 signals)
+- `TimeManager` — Game clock (1 real sec = 1 game minute at 1x), pause/1x/2x/3x
+- `Config` — Constants (need decay rates, speeds, thresholds)
+- `SettingsManager` — Persists user settings to `user://settings.cfg` (MUST load before LLMManager/AudioManager)
+- `AgentManager` — Agent registry, round-robin think ticks, spawn/remove
+- `LLMManager` — Backend abstraction: bundled (GDLlama) → Ollama → heuristic
 - `GameManager` — Top-level game state, selected agent tracking
-- `ConversationManager` — Tracks active conversations, prevents double-booking agents
+- `ConversationManager` — Active conversations, prevents double-booking
+- `DramaDirector` — RimWorld-style storyteller pacing events for narrative satisfaction
 - `EventManager` — Random/triggered life events with probabilities and cooldowns
-- `SaveManager` — Serializes full world state to JSON, auto-saves every 5 game-days
+- `SaveManager` — Multi-slot (5) save system with `.bak` backup and corruption recovery
+- `GroupManager` — Social group formation and rivalry tracking
+- `Narrator` — Storyline tracking and narrative arc management
+- `AudioManager` — 3 audio buses (Music/SFX/Ambient), crossfade, procedural fallback sounds
+- `AchievementManager` — 20 achievements, persists to `user://achievements.json`, Steam sync
+- `TutorialManager` — Contextual hints for new players
+- `SteamManager` — GodotSteam wrapper (graceful no-op without Steam)
 
 ### Key Directories
-- `autoloads/` — Singleton scripts
+- `autoloads/` — Singleton scripts + LLM backend modules
 - `scenes/agents/` — Agent scene, needs, brain, memory, relationships
 - `scenes/objects/` — InteractableObject base + 9 object types
 - `scenes/conversations/` — ConversationInstance (multi-turn LLM dialogues)
 - `scenes/events/` — EventManager, EventDefinition
-- `scenes/world/` — Office layout with navigation
-- `scenes/ui/` — HUD, god toolbar, agent inspector, narrative log, relationship web
-- `scenes/main/` — Root scene
+- `scenes/world/` — Office layout with navigation, day/night tinting
+- `scenes/ui/` — HUD, main menu, settings, save picker, achievements, hints, toasts
+- `scenes/main/` — Root game scene
 - `scripts/enums/` — AgentState, NeedType, ActionType, LifeStage
 - `scripts/data/` — MemoryEntry, PersonalityProfile, RelationshipEntry, HealthState
-- `scripts/utils/` — SpriteFactory, Palette, PromptBuilder
-- `resources/` — Personalities (JSON), prompts (TXT), events (JSON)
+- `scripts/utils/` — SpriteFactory, Palette, PromptBuilder, AudioGenerator
+- `resources/` — Personalities (JSON), prompts (TXT), events (JSON), achievements (JSON)
 
 ### Agent Systems
 - **Needs**: energy, hunger, social, productivity, health — decay over game time
-- **Brain**: LLM-powered (Ollama) with heuristic fallback
+- **Brain**: LLM-powered with heuristic fallback (200+ diverse dialogue lines)
 - **Memory**: Scored retrieval, emotional metadata, narrative threads, life summaries (max 300)
 - **Relationships**: Per-pair affinity/trust/familiarity/romantic_interest, personality compatibility
 - **Health**: Aging through life stages (young→adult→senior→dying→dead), conditions, grief
+- **Mood**: Visible emoji indicators (happy, tired, hungry, angry, sick, romantic)
 - **State machine**: IDLE → DECIDING → WALKING → INTERACTING / TALKING → IDLE
+- **Sprites**: 6-frame procedural pixel art (2 idle + 4 walk cycle)
 
 ### Objects (9 types)
-- desk, couch, coffee_machine (original)
-- water_cooler (2 occupants, triggers conversation), whiteboard (3 occupants, meeting bonus)
-- bookshelf (creative breakthrough chance), plant (passive mood), radio (passive social, toggleable), bed
+desk, couch, coffee_machine, water_cooler (2 occupants), whiteboard (3 occupants), bookshelf, plant (passive), radio (toggleable), bed
 
-### God Mode (Tab key)
-Toolbar with object palette, agent spawn/remove, event triggers. Agent inspector shows full internal state.
-
-### Conversation System
-Multi-turn LLM dialogues (3-4 exchanges), speech bubbles, post-conversation reflection updates relationships. Special confession mode for romance.
-
-### Life Events
-17 events across 5 categories (social, work, health, environment, personal). Random rolls per game-day with probability tables and cooldowns.
+### Keyboard Shortcuts
+Space=pause, 1/2/3=speed, Tab=god mode, F5=save, F9=load, F12=screenshot, L=narrative log, R=relationships, Esc=close overlays
 
 ### Save/Load
-Full world state serialized to JSON: agent positions, needs, memories, relationships, health, objects, game time.
+5 save slots at `user://saves/slot_N.json` with `.bak` backup. Auto-save every 5 game-days. Legacy migration from single-file save.
+
+### Audio
+Procedural fallback (AudioGenerator) when WAV/OGG files missing. File-based audio takes priority when present. Music crossfade between tracks.

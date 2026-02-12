@@ -7,7 +7,6 @@ var _definitions: Dictionary = {}  # id -> {name, description, category}
 var _unlocked: Dictionary = {}  # id -> true
 var _objects_placed: int = 0
 var _conversations_today: Dictionary = {}  # agent_name -> Array[String] of partners today
-var _current_day: int = 0
 
 
 func _ready() -> void:
@@ -56,7 +55,7 @@ func unlock(achievement_id: String) -> void:
 	_save_progress()
 
 	# Steam sync
-	if Engine.has_singleton("Steam") or (has_node("/root/SteamManager") and get_node("/root/SteamManager").has_method("set_achievement")):
+	if has_node("/root/SteamManager") and get_node("/root/SteamManager").has_method("set_achievement"):
 		get_node("/root/SteamManager").set_achievement(achievement_id)
 
 
@@ -122,7 +121,6 @@ func _connect_signals() -> void:
 	)
 
 	EventBus.day_changed.connect(func(day: int) -> void:
-		_current_day = day
 		_conversations_today.clear()
 		if day >= 1:
 			unlock("office_regular")
@@ -141,14 +139,15 @@ func _connect_signals() -> void:
 	)
 
 	EventBus.relationship_changed.connect(func(_a: String, _b: String, rel: RefCounted) -> void:
-		var affinity: float = rel.get("affinity") if rel.get("affinity") != null else 0.0
-		if affinity >= 80.0:
+		if not (rel is RelationshipEntry):
+			return
+		var entry: RelationshipEntry = rel as RelationshipEntry
+		if entry.affinity >= 80.0:
 			unlock("best_friends")
-		elif affinity <= -50.0:
+		elif entry.affinity <= -50.0:
 			unlock("enemies")
 		# Check for love triangle: 3+ agents each with romantic_interest > 40 toward another in the set
-		var ri: float = rel.get("romantic_interest") if rel.get("romantic_interest") != null else 0.0
-		if ri > 40.0 and not is_unlocked("love_triangle"):
+		if entry.romantic_interest > 40.0 and not is_unlocked("love_triangle"):
 			_check_love_triangle()
 	)
 
@@ -181,10 +180,9 @@ func _connect_signals() -> void:
 	)
 
 	EventBus.storyline_updated.connect(func(sl: RefCounted) -> void:
-		if sl.has_method("get") and sl.get("drama_score"):
-			var score: float = sl.get("drama_score")
-			if score >= 8.0:
-				unlock("drama_queen")
+		var score = sl.get("drama_score") if sl.has_method("get") else null
+		if score != null and float(score) >= 8.0:
+			unlock("drama_queen")
 	)
 
 	# Agent count checks (deferred to not fire on initial load)

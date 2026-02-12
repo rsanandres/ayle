@@ -3,8 +3,6 @@ extends PanelContainer
 ## Non-intrusive toast notification for errors and warnings.
 
 var _label: Label = null
-var _timer: float = 0.0
-var _duration: float = 5.0
 
 
 func _ready() -> void:
@@ -25,7 +23,6 @@ func _ready() -> void:
 
 func show_error(text: String, duration: float = 5.0) -> void:
 	_label.text = text
-	_duration = duration
 	modulate.a = 0.0
 	visible = true
 	var tween := create_tween()

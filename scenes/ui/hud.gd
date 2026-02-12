@@ -10,6 +10,7 @@ extends CanvasLayer
 
 var _selected_agent: Node2D = null
 var _god_mode: bool = false
+var _drama_label: Label = null
 var _god_toolbar: GodToolbar
 var _agent_inspector: AgentInspector
 var _narrative_log: NarrativeLog
@@ -31,6 +32,15 @@ func _ready() -> void:
 	_update_time()
 	_update_speed()
 	_update_llm_label()
+
+	# Drama indicator in status bar
+	var sep3 := HSeparator.new()
+	sep3.custom_minimum_size = Vector2(12, 0)
+	status_bar.add_child(sep3)
+	_drama_label = Label.new()
+	_drama_label.add_theme_font_size_override("font_size", 10)
+	_drama_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.8, 0.8))
+	status_bar.add_child(_drama_label)
 
 	# Create god mode toolbar
 	_god_toolbar = GodToolbar.new()
@@ -79,19 +89,52 @@ func _ready() -> void:
 	# Achievement toast listener
 	EventBus.achievement_unlocked.connect(_on_achievement_unlocked)
 
+	# LLM status toast
+	LLMManager.ollama_status_changed.connect(_on_llm_status_changed)
+	LLMManager.active_backend_changed.connect(_on_llm_backend_changed)
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		_show_context_menu(event.global_position)
 		get_viewport().set_input_as_handled()
 	elif event is InputEventKey and event.pressed:
-		if event.keycode == KEY_TAB:
-			_toggle_god_mode()
-			get_viewport().set_input_as_handled()
+		match event.keycode:
+			KEY_TAB:
+				_toggle_god_mode()
+				get_viewport().set_input_as_handled()
+			KEY_SPACE:
+				TimeManager.toggle_pause()
+				get_viewport().set_input_as_handled()
+			KEY_1:
+				TimeManager.set_speed(1)
+				get_viewport().set_input_as_handled()
+			KEY_2:
+				TimeManager.set_speed(2)
+				get_viewport().set_input_as_handled()
+			KEY_3:
+				TimeManager.set_speed(3)
+				get_viewport().set_input_as_handled()
+			KEY_ESCAPE:
+				_close_all_overlays()
+				get_viewport().set_input_as_handled()
+			KEY_F5:
+				SaveManager.save_game()
+				get_viewport().set_input_as_handled()
+			KEY_F9:
+				SaveManager.load_game()
+				get_viewport().set_input_as_handled()
+			KEY_L:
+				_narrative_log.toggle()
+				get_viewport().set_input_as_handled()
+			KEY_R:
+				_relationship_web.toggle()
+				get_viewport().set_input_as_handled()
 
 
 func _on_time_tick(_gm: float) -> void:
 	_update_time()
+	_update_drama()
 
 
 func _on_speed_changed(_i: int) -> void:
@@ -108,6 +151,27 @@ func _update_time() -> void:
 
 func _update_speed() -> void:
 	speed_label.text = TimeManager.SPEED_LABELS[TimeManager.speed_index]
+
+
+func _update_drama() -> void:
+	if not _drama_label:
+		return
+	var level: float = DramaDirector.drama_level
+	if level < 1.0:
+		_drama_label.text = ""
+		return
+	var mood: String = DramaDirector.office_mood as String
+	var desc: String
+	if level >= 7.0:
+		desc = "CLIMAX"
+		_drama_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 0.9))
+	elif level >= 4.0:
+		desc = "Tense"
+		_drama_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3, 0.85))
+	else:
+		desc = "Calm"
+		_drama_label.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5, 0.8))
+	_drama_label.text = desc
 
 
 func _update_llm_label() -> void:
@@ -131,19 +195,35 @@ func _toggle_god_mode() -> void:
 	EventBus.god_mode_toggled.emit(_god_mode)
 
 
+func _close_all_overlays() -> void:
+	if _settings_panel and _settings_panel.visible:
+		_settings_panel.visible = false
+		return
+	if _achievement_panel and _achievement_panel.visible:
+		_achievement_panel.visible = false
+		return
+	if _save_picker and _save_picker.visible:
+		_save_picker.visible = false
+		return
+	if _relationship_web.visible:
+		_relationship_web.visible = false
+		return
+	if _story_feed.visible:
+		_story_feed.visible = false
+		return
+
+
 func _show_context_menu(pos: Vector2) -> void:
 	context_menu.clear()
-	context_menu.add_item("Pause / Resume", 0)
-	context_menu.add_item("Speed Up", 1)
-	context_menu.add_item("Speed Down", 2)
+	context_menu.add_item("Pause / Resume  [Space]", 0)
+	context_menu.add_item("Speed Up  [>]", 1)
+	context_menu.add_item("Speed Down  [<]", 2)
 	context_menu.add_separator()
-	context_menu.add_item("Toggle God Mode (Tab)", 5)
-	context_menu.add_item("Narrative Log", 6)
+	context_menu.add_item("God Mode  [Tab]", 5)
+	context_menu.add_item("Narrative Log  [L]", 6)
 	context_menu.add_item("Story Feed", 8)
-	context_menu.add_item("Relationship Web", 7)
+	context_menu.add_item("Relationships  [R]", 7)
 	context_menu.add_separator()
-	# Expanded mode toggle
-	var main := get_tree().get_first_node_in_group("world")
 	var root := get_tree().current_scene
 	if root and root.has_method("set_expanded_mode"):
 		if root.expanded_mode:
@@ -152,8 +232,8 @@ func _show_context_menu(pos: Vector2) -> void:
 			context_menu.add_item("Expand to Full Window", 20)
 	context_menu.add_separator()
 	context_menu.add_item("Reconnect LLM", 3)
-	context_menu.add_item("Save Game", 10)
-	context_menu.add_item("Load Game", 11)
+	context_menu.add_item("Save  [F5]", 10)
+	context_menu.add_item("Load  [F9]", 11)
 	context_menu.add_separator()
 	context_menu.add_item("Achievements", 13)
 	context_menu.add_item("Settings", 12)
@@ -247,3 +327,36 @@ func _on_achievement_unlocked(_id: String, achievement_name: String) -> void:
 	toast.offset_bottom = 24
 	add_child(toast)
 	toast.show_achievement(achievement_name)
+
+
+func _show_toast(text: String, is_error: bool = false) -> void:
+	var toast := ErrorToast.new()
+	toast.anchor_left = 0.5
+	toast.anchor_right = 0.5
+	toast.anchor_top = 0.0
+	toast.offset_left = -100
+	toast.offset_right = 100
+	toast.offset_top = 28
+	toast.offset_bottom = 48
+	add_child(toast)
+	if is_error:
+		toast.show_error(text, 4.0)
+	else:
+		toast.show_warning(text, 3.0)
+
+
+func _on_llm_status_changed(available: bool) -> void:
+	_update_llm_label()
+	if available:
+		_show_toast("AI brain connected")
+	else:
+		_show_toast("AI brain offline. Using simpler decisions.", true)
+
+
+func _on_llm_backend_changed(backend_name: String) -> void:
+	_update_llm_label()
+	match backend_name:
+		"bundled":
+			_show_toast("Using bundled AI model")
+		"ollama":
+			_show_toast("Connected to Ollama")

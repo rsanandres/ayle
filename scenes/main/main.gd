@@ -26,6 +26,11 @@ func _ready() -> void:
 	EventBus.game_ready.emit()
 	EventBus.agent_selected.connect(_on_agent_selected_camera)
 
+	# Fade in from menu
+	modulate.a = 0.0
+	var fade_tween := create_tween()
+	fade_tween.tween_property(self, "modulate:a", 1.0, 0.5)
+
 	# Game over overlay
 	var game_over := GameOverOverlay.new()
 	add_child(game_over)
@@ -211,9 +216,11 @@ func _setup_loading_overlay() -> void:
 
 	# Show while model is loading
 	LLMManager.model_loading.connect(func(is_loading: bool) -> void:
-		bg.visible = is_loading
-		if not is_loading:
-			# Fade out
+		if is_loading:
+			bg.visible = true
+			bg.modulate.a = 1.0
+		else:
+			# Fade out then remove
 			var tween := create_tween()
 			tween.tween_property(bg, "modulate:a", 0.0, 0.5)
 			tween.tween_callback(func() -> void:

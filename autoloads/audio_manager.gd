@@ -1,19 +1,20 @@
 extends Node
 ## Audio singleton: music crossfade, spatial SFX pool, volume control.
 ## Uses 3 audio buses: Music, SFX, Ambient.
+## Falls back to procedural audio when WAV/OGG files are missing.
 
 const CROSSFADE_DURATION := 2.0
 const SFX_POOL_SIZE := 8
 const FOOTSTEP_INTERVAL := 0.35
 
-# Music tracks (loaded on demand)
+# Music tracks (loaded on demand, procedural fallback)
 var _music_paths := {
 	"calm": "res://assets/audio/music/office_calm.ogg",
 	"busy": "res://assets/audio/music/office_busy.ogg",
 	"menu": "res://assets/audio/music/menu_theme.ogg",
 }
 
-# SFX paths
+# SFX paths (file-based, with procedural fallback)
 var _sfx_paths := {
 	"footstep_1": "res://assets/audio/sfx/footstep_1.wav",
 	"footstep_2": "res://assets/audio/sfx/footstep_2.wav",
@@ -38,8 +39,10 @@ var _active_music_player: AudioStreamPlayer = null
 var _current_track: String = ""
 var _sfx_pool: Array[AudioStreamPlayer] = []
 var _sfx_pool_idx: int = 0
-var _sfx_cache: Dictionary = {}  # path -> AudioStream
+var _sfx_cache: Dictionary = {}  # name -> AudioStream
 var _music_cache: Dictionary = {}
+var _procedural_sfx: Dictionary = {}  # name -> AudioStreamWAV
+var _procedural_music: Dictionary = {}  # name -> AudioStreamWAV
 
 
 func _ready() -> void:
@@ -47,17 +50,15 @@ func _ready() -> void:
 	_apply_saved_volumes()
 	_setup_music_players()
 	_setup_sfx_pool()
+	_generate_procedural_fallbacks()
 	_connect_signals()
 
 
 func play_music(track_name: String, fade: bool = true) -> void:
 	if track_name == _current_track:
 		return
-	var path: String = _music_paths.get(track_name, "")
-	if path == "" or not ResourceLoader.exists(path):
-		return
 
-	var stream := _load_music(path)
+	var stream: AudioStream = _get_music_stream(track_name)
 	if not stream:
 		return
 
@@ -98,10 +99,7 @@ func stop_music(fade: bool = true) -> void:
 
 
 func play_sfx(sfx_name: String, volume_db: float = 0.0) -> void:
-	var path: String = _sfx_paths.get(sfx_name, "")
-	if path == "" or not ResourceLoader.exists(path):
-		return
-	var stream := _load_sfx(path)
+	var stream: AudioStream = _get_sfx_stream(sfx_name)
 	if not stream:
 		return
 	var player := _sfx_pool[_sfx_pool_idx]
@@ -111,8 +109,49 @@ func play_sfx(sfx_name: String, volume_db: float = 0.0) -> void:
 	_sfx_pool_idx = (_sfx_pool_idx + 1) % SFX_POOL_SIZE
 
 
+func _get_sfx_stream(sfx_name: String) -> AudioStream:
+	# Check cache first
+	if _sfx_cache.has(sfx_name):
+		return _sfx_cache[sfx_name]
+	# Try file-based
+	var path: String = _sfx_paths.get(sfx_name, "")
+	if path != "" and ResourceLoader.exists(path):
+		var stream := load(path) as AudioStream
+		if stream:
+			_sfx_cache[sfx_name] = stream
+			return stream
+	# Fall back to procedural
+	if _procedural_sfx.has(sfx_name):
+		_sfx_cache[sfx_name] = _procedural_sfx[sfx_name]
+		return _procedural_sfx[sfx_name]
+	return null
+
+
+func _get_music_stream(track_name: String) -> AudioStream:
+	if _music_cache.has(track_name):
+		return _music_cache[track_name]
+	var path: String = _music_paths.get(track_name, "")
+	if path != "" and ResourceLoader.exists(path):
+		var stream := load(path) as AudioStream
+		if stream:
+			_music_cache[track_name] = stream
+			return stream
+	# Procedural fallback
+	if _procedural_music.has(track_name):
+		_music_cache[track_name] = _procedural_music[track_name]
+		return _procedural_music[track_name]
+	return null
+
+
+func _generate_procedural_fallbacks() -> void:
+	_procedural_sfx = AudioGenerator.generate_all_sfx()
+	_procedural_music["calm"] = AudioGenerator.generate_music_calm()
+	# Reuse calm for other tracks (they'll be replaced with real files later)
+	_procedural_music["busy"] = _procedural_music["calm"]
+	_procedural_music["menu"] = _procedural_music["calm"]
+
+
 func _apply_saved_volumes() -> void:
-	## Apply saved volume settings from SettingsManager after buses are created.
 	var master: float = SettingsManager.master_volume
 	var music: float = SettingsManager.music_volume
 	var sfx: float = SettingsManager.sfx_volume
@@ -133,7 +172,6 @@ func _set_bus_volume_linear(bus_name: String, linear: float) -> void:
 
 
 func _setup_buses() -> void:
-	# Ensure audio buses exist
 	if AudioServer.get_bus_index("Music") == -1:
 		AudioServer.add_bus()
 		AudioServer.set_bus_name(AudioServer.bus_count - 1, "Music")
@@ -197,21 +235,3 @@ func _connect_signals() -> void:
 	EventBus.game_ready.connect(func() -> void:
 		play_music("calm")
 	)
-
-
-func _load_sfx(path: String) -> AudioStream:
-	if _sfx_cache.has(path):
-		return _sfx_cache[path]
-	var stream := load(path) as AudioStream
-	if stream:
-		_sfx_cache[path] = stream
-	return stream
-
-
-func _load_music(path: String) -> AudioStream:
-	if _music_cache.has(path):
-		return _music_cache[path]
-	var stream := load(path) as AudioStream
-	if stream:
-		_music_cache[path] = stream
-	return stream

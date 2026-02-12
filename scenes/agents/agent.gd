@@ -62,7 +62,6 @@ func _ready() -> void:
 	AgentManager.register(self)
 	nav_agent.path_desired_distance = 4.0
 	nav_agent.target_desired_distance = 4.0
-	nav_agent.navigation_finished.connect(_on_navigation_finished)
 	memory.add_observation("%s arrives at the office and starts their day." % agent_name, 3.0)
 	# Initialize health
 	health_state = HealthState.new()

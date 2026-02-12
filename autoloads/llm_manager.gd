@@ -17,7 +17,6 @@ var _bundled_backend: LLMBackendBundled = null
 var _ollama_backend: LLMBackendOllama = null
 var _active_backend: Node = null  # Current backend in use
 var _health_timer: float = 0.0
-var _queue: Array[Dictionary] = []
 
 
 var _preferred_backend: String = "auto"  # "auto", "bundled", "ollama", "heuristic"
