@@ -15,6 +15,9 @@ var _agent_inspector: AgentInspector
 var _narrative_log: NarrativeLog
 var _relationship_web: RelationshipWeb
 var _story_feed: StoryFeedPanel
+var _settings_panel: Control = null
+var _achievement_panel: Control = null
+var _save_picker: SaveSlotPicker = null
 
 
 func _ready() -> void:
@@ -72,6 +75,9 @@ func _ready() -> void:
 	_story_feed.offset_right = 470
 	_story_feed.offset_bottom = 270
 	add_child(_story_feed)
+
+	# Achievement toast listener
+	EventBus.achievement_unlocked.connect(_on_achievement_unlocked)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -148,7 +154,10 @@ func _show_context_menu(pos: Vector2) -> void:
 	context_menu.add_item("Reconnect LLM", 3)
 	context_menu.add_item("Save Game", 10)
 	context_menu.add_item("Load Game", 11)
+	context_menu.add_separator()
+	context_menu.add_item("Achievements", 13)
 	context_menu.add_item("Settings", 12)
+	context_menu.add_item("Return to Menu", 14)
 	context_menu.add_separator()
 	context_menu.add_item("Quit", 99)
 	context_menu.position = Vector2i(int(pos.x), int(pos.y))
@@ -165,11 +174,76 @@ func _on_context_menu(id: int) -> void:
 		6: _narrative_log.toggle()
 		7: _relationship_web.toggle()
 		8: _story_feed.toggle()
-		10: SaveManager.save_game()
-		11: SaveManager.load_game()
-		12: pass  # Settings menu
+		10: _show_save_picker("save")
+		11: _show_save_picker("load")
+		12: _toggle_settings()
+		13: _toggle_achievements()
+		14: _return_to_menu()
 		20:
 			var root := get_tree().current_scene
 			if root and root.has_method("set_expanded_mode"):
 				root.set_expanded_mode(not root.expanded_mode)
-		99: get_tree().quit()
+		99: _confirm_quit()
+
+
+func _confirm_quit() -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.dialog_text = "Save and quit?"
+	dialog.ok_button_text = "Quit"
+	dialog.add_button("Save & Quit", true, "save_quit")
+	dialog.confirmed.connect(func() -> void:
+		dialog.queue_free()
+		get_tree().quit()
+	)
+	dialog.custom_action.connect(func(action: StringName) -> void:
+		if action == "save_quit":
+			SaveManager.save_game()
+		dialog.queue_free()
+		get_tree().quit()
+	)
+	dialog.canceled.connect(func() -> void:
+		dialog.queue_free()
+	)
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+func _toggle_settings() -> void:
+	if not _settings_panel:
+		_settings_panel = preload("res://scenes/ui/settings_panel.gd").new()
+		add_child(_settings_panel)
+	_settings_panel.visible = not _settings_panel.visible
+
+
+func _toggle_achievements() -> void:
+	if not _achievement_panel:
+		var panel_script := load("res://scenes/ui/achievement_panel.gd")
+		if panel_script:
+			_achievement_panel = panel_script.new()
+			add_child(_achievement_panel)
+	if _achievement_panel:
+		_achievement_panel.visible = not _achievement_panel.visible
+
+
+func _show_save_picker(mode: String) -> void:
+	if not _save_picker:
+		_save_picker = SaveSlotPicker.new()
+		add_child(_save_picker)
+	_save_picker.show_picker(mode)
+
+
+func _return_to_menu() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+
+
+func _on_achievement_unlocked(_id: String, achievement_name: String) -> void:
+	var toast := AchievementToast.new()
+	toast.anchor_left = 0.5
+	toast.anchor_right = 0.5
+	toast.anchor_top = 0.0
+	toast.offset_left = -80
+	toast.offset_right = 80
+	toast.offset_top = 4
+	toast.offset_bottom = 24
+	add_child(toast)
+	toast.show_achievement(achievement_name)

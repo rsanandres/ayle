@@ -1,51 +1,155 @@
 extends Node
-## Autoload: serializes full world state to JSON. Auto-saves, manual save/load.
-## V2: procedural agents, groups, narrator data.
+## Autoload: multi-slot save system with backup and corruption recovery.
+## V3: 5 save slots, .bak backup, corruption recovery.
 
-const SAVE_PATH := "user://ayle_save.json"
+const SAVE_DIR := "user://saves/"
 const AUTO_SAVE_INTERVAL_DAYS := 5
-const SAVE_VERSION := 2
+const SAVE_VERSION := 3
+const MAX_SLOTS := 5
+const LEGACY_PATH := "user://ayle_save.json"
 
 var _last_auto_save_day: int = 0
+var current_slot: int = 0  # Active save slot
 
 
 func _ready() -> void:
 	EventBus.day_changed.connect(_on_day_changed)
+	_ensure_save_dir()
+	_migrate_legacy_save()
 
 
-func save_game() -> bool:
+func save_game(slot: int = -1) -> bool:
+	if slot < 0:
+		slot = current_slot
+	_ensure_save_dir()
+	var path := _slot_path(slot)
+
+	# Backup existing save before writing
+	if FileAccess.file_exists(path):
+		var bak_path := path + ".bak"
+		var existing := FileAccess.open(path, FileAccess.READ)
+		if existing:
+			var content := existing.get_as_text()
+			existing.close()
+			var bak := FileAccess.open(bak_path, FileAccess.WRITE)
+			if bak:
+				bak.store_string(content)
+				bak.close()
+
 	var data := _serialize_world()
+	data["slot"] = slot
+	data["save_time"] = Time.get_datetime_string_from_system()
 	var json_str := JSON.stringify(data, "\t")
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(path, FileAccess.WRITE)
 	if not file:
-		push_error("SaveManager: Failed to open save file for writing")
+		push_error("SaveManager: Failed to open save file for writing: %s" % path)
+		EventBus.narrative_event.emit("Save failed!", [], 1.0)
 		return false
 	file.store_string(json_str)
 	file.close()
-	print("[SaveManager] Game saved to %s (v%d)" % [SAVE_PATH, SAVE_VERSION])
-	EventBus.narrative_event.emit("Game saved.", [], 1.0)
+	current_slot = slot
+	print("[SaveManager] Game saved to slot %d (v%d)" % [slot, SAVE_VERSION])
+	EventBus.narrative_event.emit("Game saved (slot %d)." % (slot + 1), [], 1.0)
 	return true
 
 
-func load_game() -> bool:
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if not file:
-		push_warning("SaveManager: No save file found")
+func load_game(slot: int = -1) -> bool:
+	if slot < 0:
+		slot = current_slot
+	var path := _slot_path(slot)
+	var data := _try_load_file(path)
+
+	# Try backup if main file fails
+	if data.is_empty():
+		var bak_path := path + ".bak"
+		data = _try_load_file(bak_path)
+		if not data.is_empty():
+			push_warning("SaveManager: Loaded from backup for slot %d" % slot)
+			EventBus.narrative_event.emit("Loaded from backup save.", [], 3.0)
+
+	if data.is_empty():
+		push_warning("SaveManager: No valid save for slot %d" % slot)
 		return false
+
+	_deserialize_world(data)
+	current_slot = slot
+	var version: int = data.get("version", 1)
+	print("[SaveManager] Game loaded from slot %d (v%d)" % [slot, version])
+	EventBus.narrative_event.emit("Game loaded (slot %d)." % (slot + 1), [], 1.0)
+	return true
+
+
+func has_save(slot: int = -1) -> bool:
+	if slot < 0:
+		# Check any slot
+		for i in range(MAX_SLOTS):
+			if FileAccess.file_exists(_slot_path(i)):
+				return true
+		return false
+	return FileAccess.file_exists(_slot_path(slot))
+
+
+func get_slot_info(slot: int) -> Dictionary:
+	## Returns {exists, save_time, day, agent_count} or empty dict
+	var path := _slot_path(slot)
+	var data := _try_load_file(path)
+	if data.is_empty():
+		return {"exists": false}
+	return {
+		"exists": true,
+		"save_time": data.get("save_time", "unknown"),
+		"day": int(data.get("game_time", 480.0) / 1440.0),
+		"agent_count": (data.get("agents", []) as Array).size(),
+		"version": data.get("version", 1),
+	}
+
+
+func delete_save(slot: int) -> void:
+	var path := _slot_path(slot)
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+	var bak_path := path + ".bak"
+	if FileAccess.file_exists(bak_path):
+		DirAccess.remove_absolute(bak_path)
+
+
+func _slot_path(slot: int) -> String:
+	return SAVE_DIR + "slot_%d.json" % slot
+
+
+func _ensure_save_dir() -> void:
+	if not DirAccess.dir_exists_absolute(SAVE_DIR):
+		DirAccess.make_dir_recursive_absolute(SAVE_DIR)
+
+
+func _migrate_legacy_save() -> void:
+	# Move old single-file save to slot 0 if it exists
+	if FileAccess.file_exists(LEGACY_PATH) and not FileAccess.file_exists(_slot_path(0)):
+		var old_file := FileAccess.open(LEGACY_PATH, FileAccess.READ)
+		if old_file:
+			var content := old_file.get_as_text()
+			old_file.close()
+			_ensure_save_dir()
+			var new_file := FileAccess.open(_slot_path(0), FileAccess.WRITE)
+			if new_file:
+				new_file.store_string(content)
+				new_file.close()
+				print("[SaveManager] Migrated legacy save to slot 0")
+
+
+func _try_load_file(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var file := FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return {}
 	var json := JSON.new()
 	if json.parse(file.get_as_text()) != OK:
-		push_error("SaveManager: Failed to parse save file")
-		return false
-	var data: Dictionary = json.data
-	_deserialize_world(data)
-	var version: int = data.get("version", 1)
-	print("[SaveManager] Game loaded from %s (v%d)" % [SAVE_PATH, version])
-	EventBus.narrative_event.emit("Game loaded.", [], 1.0)
-	return true
-
-
-func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+		push_error("SaveManager: JSON parse error in %s" % path)
+		return {}
+	if json.data is Dictionary:
+		return json.data
+	return {}
 
 
 func _on_day_changed(day: int) -> void:
@@ -67,7 +171,6 @@ func _serialize_world() -> Dictionary:
 		"story_feed": [],
 	}
 
-	# Serialize agents
 	for agent in AgentManager.agents:
 		var agent_data := {
 			"name": agent.agent_name,
@@ -79,34 +182,28 @@ func _serialize_world() -> Dictionary:
 			"health": null,
 		}
 
-		# For procedural agents, save full personality data
 		if agent.personality_file == "__procedural__" and agent.personality:
 			agent_data["personality_data"] = agent.personality.to_dict()
 
-		# Needs
 		var needs_values: Dictionary = agent.needs.get_all_values()
 		for need in needs_values:
 			agent_data["needs"][NeedType.to_string_name(need)] = needs_values[need]
 
-		# Relationships
 		if agent.relationships:
 			var rels: Dictionary = agent.relationships.get_all_relationships()
 			for other_name in rels:
 				var rel: RelationshipEntry = rels[other_name]
 				agent_data["relationships"][other_name] = rel.to_dict()
 
-		# Memories (save last 50, compact)
 		var recent_mems: Array[MemoryEntry] = agent.memory.get_recent(50)
 		for mem in recent_mems:
 			agent_data["memories"].append(mem.to_dict())
 
-		# Health
 		if agent.health_state:
 			agent_data["health"] = agent.health_state.to_dict()
 
 		data["agents"].append(agent_data)
 
-	# Serialize placed objects
 	var world := get_tree().get_first_node_in_group("world")
 	if world:
 		for obj in world.get_all_objects():
@@ -116,15 +213,12 @@ func _serialize_world() -> Dictionary:
 				"position": {"x": obj.position.x, "y": obj.position.y},
 			})
 
-	# Serialize groups (V2)
 	for group in GroupManager.groups:
 		data["groups"].append(group.to_dict())
 
-	# Serialize narrator storylines (V2)
 	for sl in Narrator.storylines:
 		data["storylines"].append(sl.to_dict())
 
-	# Serialize story feed (V2)
 	for entry in Narrator.feed:
 		data["story_feed"].append(entry.to_dict())
 
@@ -134,22 +228,18 @@ func _serialize_world() -> Dictionary:
 func _deserialize_world(data: Dictionary) -> void:
 	var version: int = data.get("version", 1)
 
-	# Restore game time
 	TimeManager.game_minutes = data.get("game_time", 480.0)
 	TimeManager.set_speed(data.get("speed_index", 1))
 
-	# Restore agents
 	var agent_datas: Array = data.get("agents", [])
-
-	# First pass: update existing agents (from scene) or spawn procedural ones
 	var restored_names: Array[String] = []
+
 	for agent_data in agent_datas:
 		var agent_name: String = agent_data.get("name", "")
 		var personality_file: String = agent_data.get("personality_file", "")
 		var agent := AgentManager.get_agent_by_name(agent_name)
 
 		if not agent and personality_file == "__procedural__":
-			# Spawn procedural agent from saved personality data
 			var personality_data: Dictionary = agent_data.get("personality_data", {})
 			if not personality_data.is_empty():
 				var pos_data: Dictionary = agent_data.get("position", {})
@@ -157,11 +247,10 @@ func _deserialize_world(data: Dictionary) -> void:
 				agent = AgentManager.spawn_procedural_agent(pos, personality_data)
 
 		if not agent:
-			continue  # Skip agents that don't exist and aren't procedural
+			continue
 
 		restored_names.append(agent_name)
 
-		# Restore needs
 		var needs_data: Dictionary = agent_data.get("needs", {})
 		for need_key in needs_data:
 			var need_type: NeedType.Type
@@ -174,30 +263,25 @@ func _deserialize_world(data: Dictionary) -> void:
 				_: continue
 			agent.needs.set_value(need_type, float(needs_data[need_key]))
 
-		# Restore position
 		var pos_data: Dictionary = agent_data.get("position", {})
 		agent.position = Vector2(pos_data.get("x", agent.position.x), pos_data.get("y", agent.position.y))
 
-		# Restore relationships
 		var rels_data: Dictionary = agent_data.get("relationships", {})
 		for other_name in rels_data:
 			var rel_dict: Dictionary = rels_data[other_name]
 			var rel := RelationshipEntry.from_dict(rel_dict)
 			agent.relationships._relationships[other_name] = rel
 
-		# Restore memories
 		var mems_data: Array = agent_data.get("memories", [])
 		agent.memory.memories.clear()
 		for mem_dict in mems_data:
 			var mem := MemoryEntry.from_dict(mem_dict)
 			agent.memory.memories.append(mem)
 
-		# Restore health
 		var health_data = agent_data.get("health", null)
 		if health_data is Dictionary:
 			agent.health_state = HealthState.from_dict(health_data)
 
-	# V2: Restore groups
 	if version >= 2:
 		var groups_data: Array = data.get("groups", [])
 		GroupManager.groups.clear()
@@ -205,21 +289,18 @@ func _deserialize_world(data: Dictionary) -> void:
 			var group := SocialGroup.from_dict(gd)
 			GroupManager.groups.append(group)
 
-		# Restore narrator storylines
 		var storylines_data: Array = data.get("storylines", [])
 		Narrator.storylines.clear()
 		for sld in storylines_data:
 			var sl := Storyline.from_dict(sld)
 			Narrator.storylines.append(sl)
 
-		# Restore story feed
 		var feed_data: Array = data.get("story_feed", [])
 		Narrator.feed.clear()
 		for fd in feed_data:
 			var entry := StoryEntry.from_dict(fd)
 			Narrator.feed.append(entry)
 
-	# Resize office if needed
 	var world := get_tree().get_first_node_in_group("world")
 	if world and world.has_method("resize_for_agents"):
 		world.resize_for_agents(AgentManager.agents.size())

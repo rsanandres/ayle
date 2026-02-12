@@ -39,6 +39,14 @@ func unregister(agent: Node2D) -> void:
 	agents.erase(agent)
 	_agent_tiers.erase(agent)
 	spatial_grid.remove_agent(agent)
+	# Check if all agents are dead
+	if agents.is_empty():
+		call_deferred("_check_all_dead")
+
+
+func _check_all_dead() -> void:
+	if agents.is_empty():
+		EventBus.all_agents_dead.emit()
 
 
 func get_agent_by_name(agent_name: String) -> Node2D:

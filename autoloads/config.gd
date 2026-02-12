@@ -59,3 +59,8 @@ const SPATIAL_GRID_CELL_SIZE := 64
 # Social groups
 const GROUP_MIN_SIZE := 3
 const GROUP_AFFINITY_THRESHOLD := 25.0
+
+# Bundled LLM
+const BUNDLED_MODEL_FILENAME := "smollm2-1.7b-instruct-q4_k_m.gguf"
+const LLM_CONTEXT_SIZE := 2048
+const LLM_MAX_PREDICT := 200

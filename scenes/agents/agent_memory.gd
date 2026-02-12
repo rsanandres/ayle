@@ -3,9 +3,11 @@ extends Node
 ## Per-agent memory stream with retrieval scoring, narrative threads, and reflection triggers.
 
 const MAX_MEMORIES := 300
+const MAX_MEMORIES_BACKGROUND := 100  # Reduced budget for background-tier agents
 const REFLECTION_IMPORTANCE_THRESHOLD := 50.0
 const COMPACTION_BATCH := 50
 const LIFE_SUMMARY_INTERVAL := 50  # regenerate every N memories
+var memory_budget: int = MAX_MEMORIES  # Can be reduced for background agents
 
 var memories: Array[MemoryEntry] = []
 var _importance_accumulator: float = 0.0
@@ -35,7 +37,7 @@ func add_memory(type: MemoryEntry.MemoryType, description: String, importance: f
 		_regenerate_life_summary()
 
 	# Compact if too many memories
-	if memories.size() > MAX_MEMORIES:
+	if memories.size() > memory_budget:
 		_compact()
 
 

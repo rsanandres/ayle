@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="Ayle"
 config/description="AI Agent Office Simulation"
-run/main_scene="res://scenes/main/main.tscn"
+run/main_scene="res://scenes/ui/main_menu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -33,6 +33,11 @@ EventManager="*res://scenes/events/event_manager.gd"
 SaveManager="*res://autoloads/save_manager.gd"
 GroupManager="*res://autoloads/group_manager.gd"
 Narrator="*res://autoloads/narrator.gd"
+SettingsManager="*res://autoloads/settings_manager.gd"
+AudioManager="*res://autoloads/audio_manager.gd"
+AchievementManager="*res://autoloads/achievement_manager.gd"
+TutorialManager="*res://autoloads/tutorial_manager.gd"
+SteamManager="*res://autoloads/steam_manager.gd"
 
 [display]
 

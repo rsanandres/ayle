@@ -1,0 +1,2 @@
+# GGUF models are too large for git - ship with builds
+*.gguf

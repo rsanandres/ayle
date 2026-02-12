@@ -91,11 +91,25 @@ func _collect_objects() -> void:
 			_all_objects.append(child)
 
 
+var _redraw_timer: float = 0.0
+
+
+func _process(delta: float) -> void:
+	_redraw_timer += delta
+	if _redraw_timer >= 5.0:
+		_redraw_timer = 0.0
+		queue_redraw()
+
+
 func _draw() -> void:
 	var floor_rect := Rect2(_m, _m, _w, _h)
 
-	# Clean white floor
-	draw_rect(floor_rect, Color(0.96, 0.96, 0.97, 0.95))
+	# Day/night tint based on game time
+	var hour := fmod(TimeManager.game_minutes / 60.0, 24.0)
+	var tint := _get_day_night_tint(hour)
+	var floor_color := Color(0.96, 0.96, 0.97, 0.95).lerp(tint, 0.15)
+
+	draw_rect(floor_rect, floor_color)
 
 	# Subtle tile grid
 	var grid_color := Color(0.88, 0.88, 0.9, 0.4)
@@ -110,3 +124,19 @@ func _draw() -> void:
 	# Soft shadow along bottom and right edges (depth)
 	draw_line(Vector2(_m, _m + _h), Vector2(_m + _w, _m + _h), Color(0.7, 0.7, 0.72, 0.5), 2.0)
 	draw_line(Vector2(_m + _w, _m), Vector2(_m + _w, _m + _h), Color(0.7, 0.7, 0.72, 0.5), 2.0)
+
+
+func _get_day_night_tint(hour: float) -> Color:
+	if hour < 5.0 or hour >= 22.0:
+		return Color(0.7, 0.75, 0.95)  # Night blue
+	elif hour < 7.0:
+		var t := (hour - 5.0) / 2.0
+		return Color(0.7, 0.75, 0.95).lerp(Color(1.0, 0.95, 0.85), t)
+	elif hour < 17.0:
+		return Color(0.98, 0.97, 0.95)  # Daytime warm white
+	elif hour < 20.0:
+		var t := (hour - 17.0) / 3.0
+		return Color(0.98, 0.97, 0.95).lerp(Color(0.95, 0.85, 0.7), t)
+	else:
+		var t := (hour - 20.0) / 2.0
+		return Color(0.95, 0.85, 0.7).lerp(Color(0.7, 0.75, 0.95), t)

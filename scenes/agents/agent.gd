@@ -22,10 +22,16 @@ var health_state: HealthState = null
 var is_dead: bool = false
 var _interact_timer: float = 0.0
 var _interact_duration: float = 0.0
-var _sprite_frames: Array[ImageTexture] = []
+var _idle_frames: Array[ImageTexture] = []
+var _walk_frames: Array[ImageTexture] = []
 var _anim_timer: float = 0.0
 var _anim_frame: int = 0
 var _speech_tween: Tween = null
+var _footstep_timer: float = 0.0
+var _selection_ring: Node2D = null
+var _is_selected: bool = false
+var _interaction_particles: CPUParticles2D = null
+var _death_particles: CPUParticles2D = null
 
 @onready var needs: AgentNeeds = $AgentNeeds
 @onready var heuristic_brain: HeuristicBrain = $HeuristicBrain
@@ -46,6 +52,8 @@ func _ready() -> void:
 	_load_personality()
 	label.text = agent_name
 	_setup_sprite()
+	_setup_particles()
+	_setup_selection_ring()
 	memory.setup(agent_name)
 	smart_brain.personality = personality
 	smart_brain.thought_generated.connect(_on_thought)
@@ -58,6 +66,8 @@ func _ready() -> void:
 	health_state = HealthState.new()
 	health_state.randomize_lifespan()
 	EventBus.day_changed.connect(_on_day_changed)
+	EventBus.agent_selected.connect(_on_global_agent_selected)
+	EventBus.agent_deselected.connect(_on_global_agent_deselected)
 
 
 func _exit_tree() -> void:
@@ -76,6 +86,7 @@ func _physics_process(delta: float) -> void:
 			_process_interacting(delta)
 	_animate(delta)
 	_update_emotion_indicator()
+	_update_need_warning()
 
 
 func request_think() -> void:
@@ -119,6 +130,9 @@ func die(cause: String = "natural causes") -> void:
 	is_dead = true
 	state = AgentState.Type.IDLE
 	velocity = Vector2.ZERO
+	# Death particles
+	if _death_particles:
+		_death_particles.emitting = true
 	# Fade out sprite
 	var tween := create_tween()
 	tween.tween_property(sprite, "modulate:a", 0.0, 2.0)
@@ -147,7 +161,6 @@ func witness_death(dead_name: String, cause: String) -> void:
 	memory.memories[-1].emotion = "grief"
 	memory.memories[-1].sentiment = -0.9
 	memory.memories[-1].decay_protected = true
-	# Grief affects social need
 	needs.restore(NeedType.Type.SOCIAL, -30.0)
 
 
@@ -156,7 +169,6 @@ func _make_decision() -> void:
 	var nearby_objects := _get_nearby_objects()
 	var nearby_agents := AgentManager.get_agents_near(global_position, 200.0, self)
 	var decision: Dictionary = smart_brain.decide(needs, nearby_objects, nearby_agents)
-	# If waiting for LLM, stay idle until async response comes
 	if decision.get("waiting_for_llm", false):
 		state = AgentState.Type.IDLE
 		return
@@ -206,7 +218,7 @@ func _navigate_to(target_pos: Vector2) -> void:
 	state = AgentState.Type.WALKING
 
 
-func _process_walking(_delta: float) -> void:
+func _process_walking(delta: float) -> void:
 	if nav_agent.is_navigation_finished():
 		_on_navigation_finished()
 		return
@@ -216,6 +228,13 @@ func _process_walking(_delta: float) -> void:
 	move_and_slide()
 	if velocity.x != 0:
 		sprite.flip_h = velocity.x < 0
+
+	# Footstep SFX
+	_footstep_timer += delta
+	if _footstep_timer >= AudioManager.FOOTSTEP_INTERVAL:
+		_footstep_timer = 0.0
+		var sfx_name := "footstep_1" if randi() % 2 == 0 else "footstep_2"
+		AudioManager.play_sfx(sfx_name, -12.0)
 
 
 func _process_interacting(delta: float) -> void:
@@ -229,7 +248,6 @@ func _on_navigation_finished() -> void:
 	if current_action == ActionType.Type.GO_TO_OBJECT and current_target:
 		_start_interaction()
 	elif current_action == ActionType.Type.TALK_TO_AGENT and current_target:
-		# Trigger conversation system instead of simple social restore
 		if current_target and not current_target.is_dead:
 			ConversationManager.start_conversation(self, current_target)
 		else:
@@ -257,6 +275,9 @@ func _start_interaction() -> void:
 	_interact_timer = 0.0
 	state = AgentState.Type.INTERACTING
 	EventBus.object_occupied.emit(current_target, self)
+	# Interaction sparkles
+	if _interaction_particles:
+		_interaction_particles.emitting = true
 
 
 func _finish_interaction() -> void:
@@ -270,6 +291,8 @@ func _finish_interaction() -> void:
 		current_target.release(self)
 		EventBus.object_freed.emit(current_target, self)
 		EventBus.agent_action_completed.emit(self, current_action, current_target)
+	if _interaction_particles:
+		_interaction_particles.emitting = false
 	current_target = null
 	state = AgentState.Type.IDLE
 
@@ -319,12 +342,10 @@ func _apply_personality_decay_rates() -> void:
 func _on_thought(thought: String) -> void:
 	thought_bubble.text = thought
 	thought_bubble.visible = true
-	# Log thought to narrative
 	EventBus.narrative_event.emit(
 		"%s thinks: \"%s\"" % [agent_name, thought],
 		[agent_name], 2.0
 	)
-	# Fade out after a few seconds
 	var tween := create_tween()
 	tween.tween_interval(4.0)
 	tween.tween_property(thought_bubble, "modulate:a", 0.0, 1.0)
@@ -335,39 +356,134 @@ func _on_thought(thought: String) -> void:
 
 
 func _setup_sprite() -> void:
-	# Named presets for original characters, generic color-based for procedural
 	match personality_file:
-		"alice": _sprite_frames = SpriteFactory.create_alice()
-		"bob": _sprite_frames = SpriteFactory.create_bob()
-		"clara": _sprite_frames = SpriteFactory.create_clara()
-		"dave": _sprite_frames = SpriteFactory.create_dave()
-		"emma": _sprite_frames = SpriteFactory.create_emma()
+		"alice": _set_sprite_frames(SpriteFactory.create_alice())
+		"bob": _set_sprite_frames(SpriteFactory.create_bob())
+		"clara": _set_sprite_frames(SpriteFactory.create_clara())
+		"dave": _set_sprite_frames(SpriteFactory.create_dave())
+		"emma": _set_sprite_frames(SpriteFactory.create_emma())
 		_:
 			if personality:
-				_sprite_frames = SpriteFactory.create_from_color(personality.color)
+				_set_sprite_frames(SpriteFactory.create_from_color(personality.color))
 			else:
-				_sprite_frames = SpriteFactory.create_character(
-					Color(agent_color), Color(agent_color.darkened(0.3)), Palette.WOOD_DARK)
-	if not _sprite_frames.is_empty():
-		sprite.texture = _sprite_frames[0]
+				_set_sprite_frames(SpriteFactory.create_character(
+					Color(agent_color), Color(agent_color.darkened(0.3)), Palette.WOOD_DARK))
+	if not _idle_frames.is_empty():
+		sprite.texture = _idle_frames[0]
+
+
+func _set_sprite_frames(all_frames: Array[ImageTexture]) -> void:
+	# SpriteFactory now returns [idle_0, idle_1, walk_0, walk_1, walk_2, walk_3]
+	if all_frames.size() >= 6:
+		_idle_frames = [all_frames[0], all_frames[1]]
+		_walk_frames = [all_frames[2], all_frames[3], all_frames[4], all_frames[5]]
+	elif all_frames.size() >= 2:
+		_idle_frames = [all_frames[0], all_frames[1]]
+		_walk_frames = [all_frames[0], all_frames[1]]  # Fallback to idle
+	elif all_frames.size() == 1:
+		_idle_frames = [all_frames[0]]
+		_walk_frames = [all_frames[0]]
 
 
 func _animate(delta: float) -> void:
-	if _sprite_frames.size() < 2:
-		return
 	_anim_timer += delta
-	# Bob speed: slower when idle, faster when walking
-	var bob_speed := 0.5 if state == AgentState.Type.WALKING else 0.8
-	if _anim_timer >= bob_speed:
-		_anim_timer -= bob_speed
-		_anim_frame = (_anim_frame + 1) % _sprite_frames.size()
-		sprite.texture = _sprite_frames[_anim_frame]
+	if state == AgentState.Type.WALKING and _walk_frames.size() >= 2:
+		# Walk animation: faster cycle
+		if _anim_timer >= 0.2:
+			_anim_timer -= 0.2
+			_anim_frame = (_anim_frame + 1) % _walk_frames.size()
+			sprite.texture = _walk_frames[_anim_frame]
+	elif _idle_frames.size() >= 2:
+		# Idle bob: slower cycle
+		if _anim_timer >= 0.8:
+			_anim_timer -= 0.8
+			_anim_frame = (_anim_frame + 1) % _idle_frames.size()
+			sprite.texture = _idle_frames[_anim_frame]
+
+
+func _setup_particles() -> void:
+	# Interaction sparkles
+	_interaction_particles = CPUParticles2D.new()
+	_interaction_particles.emitting = false
+	_interaction_particles.amount = 6
+	_interaction_particles.lifetime = 0.6
+	_interaction_particles.one_shot = false
+	_interaction_particles.explosiveness = 0.3
+	_interaction_particles.direction = Vector2(0, -1)
+	_interaction_particles.spread = 60.0
+	_interaction_particles.initial_velocity_min = 10.0
+	_interaction_particles.initial_velocity_max = 25.0
+	_interaction_particles.gravity = Vector2(0, 20)
+	_interaction_particles.scale_amount_min = 0.5
+	_interaction_particles.scale_amount_max = 1.0
+	_interaction_particles.color = Color(1.0, 0.9, 0.4, 0.8)
+	_interaction_particles.position = Vector2(0, -8)
+	add_child(_interaction_particles)
+
+	# Death particles
+	_death_particles = CPUParticles2D.new()
+	_death_particles.emitting = false
+	_death_particles.amount = 12
+	_death_particles.lifetime = 2.0
+	_death_particles.one_shot = true
+	_death_particles.explosiveness = 0.8
+	_death_particles.direction = Vector2(0, -1)
+	_death_particles.spread = 180.0
+	_death_particles.initial_velocity_min = 5.0
+	_death_particles.initial_velocity_max = 15.0
+	_death_particles.gravity = Vector2(0, -5)
+	_death_particles.scale_amount_min = 0.5
+	_death_particles.scale_amount_max = 1.5
+	_death_particles.color = Color(0.3, 0.3, 0.4, 0.6)
+	add_child(_death_particles)
+
+
+func _setup_selection_ring() -> void:
+	_selection_ring = Node2D.new()
+	_selection_ring.visible = false
+	_selection_ring.z_index = -1
+	add_child(_selection_ring)
+	_selection_ring.draw.connect(_draw_selection_ring)
+
+
+func _draw_selection_ring() -> void:
+	if _selection_ring:
+		var pulse := 0.6 + sin(Time.get_ticks_msec() * 0.005) * 0.2
+		_selection_ring.draw_arc(Vector2(0, 2), 10.0, 0, TAU, 24, Color(1.0, 0.9, 0.3, pulse), 1.0)
+
+
+func _on_global_agent_selected(agent: Node2D) -> void:
+	_is_selected = (agent == self)
+	_selection_ring.visible = _is_selected
+
+
+func _on_global_agent_deselected() -> void:
+	_is_selected = false
+	_selection_ring.visible = false
+
+
+func _update_need_warning() -> void:
+	# Flash name label red when any need is critical
+	var any_critical := false
+	var all_values: Dictionary = needs.get_all_values()
+	for need in all_values:
+		if need == NeedType.Type.HEALTH:
+			continue
+		var val: float = all_values[need]
+		if val < Config.NEED_CRITICAL_THRESHOLD:
+			any_critical = true
+			break
+
+	if any_critical:
+		var pulse := 0.5 + sin(Time.get_ticks_msec() * 0.008) * 0.5
+		label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, pulse))
+	else:
+		label.remove_theme_color_override("font_color")
 
 
 func _update_emotion_indicator() -> void:
 	if not health_state:
 		return
-	# Show emotional indicators based on state
 	var indicator_text := ""
 	if health_state.life_stage == LifeStage.Type.DYING:
 		indicator_text = "..."
@@ -389,10 +505,8 @@ func _on_day_changed(day: int) -> void:
 	if is_dead or not health_state:
 		return
 	health_state.advance_day()
-	# Check for death
 	if health_state.health <= 0.0 or health_state.life_stage == LifeStage.Type.DEAD:
 		die("old age")
-	# Health affects energy decay
 	if health_state.life_stage == LifeStage.Type.SENIOR:
 		needs.set_decay_rate(NeedType.Type.ENERGY, Config.NEED_DECAY_BASE.get(NeedType.Type.ENERGY, 0.15) * 1.5)
 	if not health_state.conditions.is_empty():
@@ -404,3 +518,9 @@ func _on_input_event(viewport: Node, event: InputEvent, _shape_idx: int) -> void
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		EventBus.agent_selected.emit(self)
 		viewport.set_input_as_handled()
+
+
+func _process(_delta: float) -> void:
+	# Redraw selection ring for pulse animation
+	if _is_selected and _selection_ring:
+		_selection_ring.queue_redraw()

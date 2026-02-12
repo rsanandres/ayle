@@ -1,15 +1,23 @@
 class_name SpriteFactory
 ## Generates pixel art sprites procedurally. Chibi characters (12x16), furniture (various).
+## Characters: 2 idle frames + 4 walk frames.
 
 # --- CHARACTERS (12x16, chibi proportions: big head, small body) ---
 
 static func create_character(primary: Color, secondary: Color, hair_color: Color, skin: Color = Palette.WOOD_LIGHT) -> Array[ImageTexture]:
-	## Returns [idle_frame_0, idle_frame_1] for 2-frame idle bob
+	## Returns [idle_0, idle_1, walk_0, walk_1, walk_2, walk_3]
 	var frames: Array[ImageTexture] = []
+	# Idle frames (bob)
 	for frame_idx in range(2):
 		var img := Image.create(12, 16, false, Image.FORMAT_RGBA8)
 		img.fill(Color(0, 0, 0, 0))
 		_draw_character(img, primary, secondary, hair_color, skin, frame_idx)
+		frames.append(ImageTexture.create_from_image(img))
+	# Walk frames (4-frame cycle)
+	for walk_idx in range(4):
+		var img := Image.create(12, 16, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0, 0, 0, 0))
+		_draw_character_walk(img, primary, secondary, hair_color, skin, walk_idx)
 		frames.append(ImageTexture.create_from_image(img))
 	return frames
 
@@ -69,6 +77,103 @@ static func _draw_character(img: Image, primary: Color, secondary: Color, hair: 
 
 	if frame == 1:
 		_px(img, 3, 15, o); _px(img, 4, 15, o)
+
+
+static func _draw_character_walk(img: Image, primary: Color, secondary: Color, hair: Color, skin: Color, walk_frame: int) -> void:
+	## Walk cycle: 4 frames (stand, left-forward, stand, right-forward)
+	var o := Palette.OUTLINE
+	var eye := Palette.OUTLINE
+	var hair_dark: Color = hair.darkened(0.3)
+	var pants := secondary.darkened(0.15)
+
+	# Slight bob on frames 1 and 3 (mid-stride)
+	var bob := -1 if (walk_frame == 1 or walk_frame == 3) else 0
+
+	# Draw upper body (same as idle frame 0 + bob)
+	# --- HAIR ---
+	_px(img, 3, 0 + bob, hair); _px(img, 4, 0 + bob, hair); _px(img, 5, 0 + bob, hair)
+	_px(img, 6, 0 + bob, hair); _px(img, 7, 0 + bob, hair); _px(img, 8, 0 + bob, hair)
+	_px(img, 2, 1 + bob, hair); _px(img, 3, 1 + bob, hair); _px(img, 4, 1 + bob, hair_dark)
+	_px(img, 5, 1 + bob, hair); _px(img, 6, 1 + bob, hair); _px(img, 7, 1 + bob, hair_dark)
+	_px(img, 8, 1 + bob, hair); _px(img, 9, 1 + bob, hair)
+	_px(img, 2, 2 + bob, hair); _px(img, 3, 2 + bob, skin); _px(img, 4, 2 + bob, skin)
+	_px(img, 5, 2 + bob, skin); _px(img, 6, 2 + bob, skin); _px(img, 7, 2 + bob, skin)
+	_px(img, 8, 2 + bob, skin); _px(img, 9, 2 + bob, hair)
+
+	# --- FACE ---
+	_px(img, 2, 3 + bob, hair); _px(img, 3, 3 + bob, skin); _px(img, 4, 3 + bob, eye)
+	_px(img, 5, 3 + bob, skin); _px(img, 6, 3 + bob, skin); _px(img, 7, 3 + bob, eye)
+	_px(img, 8, 3 + bob, skin); _px(img, 9, 3 + bob, hair)
+
+	_px(img, 2, 4 + bob, o); _px(img, 3, 4 + bob, skin); _px(img, 4, 4 + bob, skin)
+	_px(img, 5, 4 + bob, skin); _px(img, 6, 4 + bob, skin); _px(img, 7, 4 + bob, skin)
+	_px(img, 8, 4 + bob, skin); _px(img, 9, 4 + bob, o)
+
+	_px(img, 3, 5 + bob, o); _px(img, 4, 5 + bob, skin); _px(img, 5, 5 + bob, skin)
+	_px(img, 6, 5 + bob, skin); _px(img, 7, 5 + bob, skin); _px(img, 8, 5 + bob, o)
+
+	# --- BODY ---
+	_px(img, 5, 6 + bob, skin); _px(img, 6, 6 + bob, skin)
+	_px(img, 3, 7 + bob, secondary); _px(img, 4, 7 + bob, primary); _px(img, 5, 7 + bob, primary)
+	_px(img, 6, 7 + bob, primary); _px(img, 7, 7 + bob, primary); _px(img, 8, 7 + bob, secondary)
+
+	for y in range(8, 11):
+		_px(img, 3, y + bob, secondary); _px(img, 4, y + bob, primary); _px(img, 5, y + bob, primary)
+		_px(img, 6, y + bob, primary); _px(img, 7, y + bob, primary); _px(img, 8, y + bob, secondary)
+
+	# Arms swing slightly
+	match walk_frame:
+		0, 2:  # Standing frames - arms normal
+			for y in range(7, 10):
+				_px(img, 2, y + bob, primary); _px(img, 9, y + bob, primary)
+			_px(img, 2, 10 + bob, skin); _px(img, 9, 10 + bob, skin)
+		1:  # Left arm forward, right arm back
+			for y in range(7, 10):
+				_px(img, 2, y + bob, primary); _px(img, 9, y + bob, primary)
+			_px(img, 2, 10 + bob, skin); _px(img, 9, 10 + bob, skin)
+			_px(img, 1, 9 + bob, skin)  # Left arm extended
+		3:  # Right arm forward, left arm back
+			for y in range(7, 10):
+				_px(img, 2, y + bob, primary); _px(img, 9, y + bob, primary)
+			_px(img, 2, 10 + bob, skin); _px(img, 9, 10 + bob, skin)
+			_px(img, 10, 9 + bob, skin)  # Right arm extended
+
+	# --- LEGS (walk cycle) ---
+	match walk_frame:
+		0:  # Stand
+			for y in range(11, 14):
+				_px(img, 4, y + bob, pants); _px(img, 5, y + bob, pants)
+				_px(img, 6, y + bob, pants); _px(img, 7, y + bob, pants)
+			_px(img, 3, 14 + bob, o); _px(img, 4, 14 + bob, o)
+			_px(img, 7, 14 + bob, o); _px(img, 8, 14 + bob, o)
+		1:  # Left foot forward
+			# Left leg forward
+			_px(img, 3, 11 + bob, pants); _px(img, 4, 11 + bob, pants)
+			_px(img, 3, 12 + bob, pants); _px(img, 4, 12 + bob, pants)
+			_px(img, 2, 13 + bob, pants); _px(img, 3, 13 + bob, pants)
+			_px(img, 2, 14 + bob, o); _px(img, 3, 14 + bob, o)
+			# Right leg back
+			_px(img, 7, 11 + bob, pants); _px(img, 8, 11 + bob, pants)
+			_px(img, 7, 12 + bob, pants); _px(img, 8, 12 + bob, pants)
+			_px(img, 8, 13 + bob, pants); _px(img, 9, 13 + bob, pants)
+			_px(img, 8, 14 + bob, o); _px(img, 9, 14 + bob, o)
+		2:  # Stand (passing)
+			for y in range(11, 14):
+				_px(img, 4, y + bob, pants); _px(img, 5, y + bob, pants)
+				_px(img, 6, y + bob, pants); _px(img, 7, y + bob, pants)
+			_px(img, 3, 14 + bob, o); _px(img, 4, 14 + bob, o)
+			_px(img, 7, 14 + bob, o); _px(img, 8, 14 + bob, o)
+		3:  # Right foot forward
+			# Left leg back
+			_px(img, 3, 11 + bob, pants); _px(img, 4, 11 + bob, pants)
+			_px(img, 3, 12 + bob, pants); _px(img, 4, 12 + bob, pants)
+			_px(img, 2, 13 + bob, pants); _px(img, 3, 13 + bob, pants)
+			_px(img, 2, 14 + bob, o); _px(img, 3, 14 + bob, o)
+			# Right leg forward
+			_px(img, 7, 11 + bob, pants); _px(img, 8, 11 + bob, pants)
+			_px(img, 7, 12 + bob, pants); _px(img, 8, 12 + bob, pants)
+			_px(img, 8, 13 + bob, pants); _px(img, 9, 13 + bob, pants)
+			_px(img, 8, 14 + bob, o); _px(img, 9, 14 + bob, o)
 
 
 static func _px(img: Image, x: int, y: int, color: Color) -> void:
@@ -162,22 +267,17 @@ static func create_couch_sprite() -> ImageTexture:
 static func create_water_cooler_sprite() -> ImageTexture:
 	var img := Image.create(12, 16, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	# Water bottle (top)
 	for x in range(4, 8):
 		for y in range(0, 5):
 			_px(img, x, y, Palette.BLUE.lightened(0.3))
 	_px(img, 4, 0, Palette.BLUE); _px(img, 7, 0, Palette.BLUE)
-	# Body
 	for x in range(3, 9):
 		for y in range(5, 12):
 			_px(img, x, y, Palette.LIGHT_GRAY)
 	for y in range(5, 12):
 		_px(img, 3, y, Palette.MID_GRAY); _px(img, 8, y, Palette.MID_GRAY)
-	# Spout
 	_px(img, 9, 8, Palette.DARK_GRAY); _px(img, 10, 8, Palette.DARK_GRAY)
-	# Red/blue taps
 	_px(img, 9, 7, Palette.RED); _px(img, 9, 9, Palette.BLUE)
-	# Base/legs
 	for x in range(2, 10):
 		_px(img, x, 12, Palette.DARK_GRAY)
 	for y in range(12, 15):
@@ -188,28 +288,22 @@ static func create_water_cooler_sprite() -> ImageTexture:
 static func create_whiteboard_sprite() -> ImageTexture:
 	var img := Image.create(28, 16, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	# Board frame
 	for x in range(2, 26):
 		_px(img, x, 1, Palette.MID_GRAY); _px(img, x, 11, Palette.MID_GRAY)
 	for y in range(1, 12):
 		_px(img, 2, y, Palette.MID_GRAY); _px(img, 25, y, Palette.MID_GRAY)
-	# White surface
 	for x in range(3, 25):
 		for y in range(2, 11):
 			_px(img, x, y, Palette.WHITE)
-	# Some "writing" marks
 	for x in range(5, 15):
 		_px(img, x, 4, Palette.BLUE)
 	for x in range(5, 20):
 		_px(img, x, 6, Palette.RED)
 	for x in range(5, 12):
 		_px(img, x, 8, Palette.GREEN)
-	# Tray at bottom
 	for x in range(4, 24):
 		_px(img, x, 12, Palette.DARK_GRAY)
-	# Markers in tray
 	_px(img, 6, 12, Palette.RED); _px(img, 8, 12, Palette.BLUE); _px(img, 10, 12, Palette.GREEN)
-	# Stand/legs
 	_px(img, 8, 13, Palette.OUTLINE); _px(img, 8, 14, Palette.OUTLINE)
 	_px(img, 19, 13, Palette.OUTLINE); _px(img, 19, 14, Palette.OUTLINE)
 	for x in range(6, 12):
@@ -222,29 +316,24 @@ static func create_whiteboard_sprite() -> ImageTexture:
 static func create_bookshelf_sprite() -> ImageTexture:
 	var img := Image.create(20, 16, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	# Shelf frame
 	for y in range(0, 16):
 		_px(img, 1, y, Palette.WOOD_DARK); _px(img, 18, y, Palette.WOOD_DARK)
 	for x in range(1, 19):
 		_px(img, x, 0, Palette.WOOD_DARK); _px(img, x, 5, Palette.WOOD_MID)
 		_px(img, x, 10, Palette.WOOD_MID); _px(img, x, 15, Palette.WOOD_DARK)
-	# Books on shelves (colorful rectangles)
 	var book_colors: Array[Color] = [Palette.RED, Palette.BLUE, Palette.GREEN, Palette.PURPLE, Palette.ORANGE, Palette.TEAL]
-	# Top shelf
 	var bx := 3
 	for i in range(5):
 		var c: Color = book_colors[i % book_colors.size()]
 		for y in range(1, 5):
 			_px(img, bx, y, c); _px(img, bx + 1, y, c.darkened(0.2))
 		bx += 3
-	# Middle shelf
 	bx = 2
 	for i in range(6):
 		var c: Color = book_colors[(i + 2) % book_colors.size()]
 		for y in range(6, 10):
 			_px(img, bx, y, c); _px(img, bx + 1, y, c.darkened(0.15))
 		bx += 3
-	# Bottom shelf
 	bx = 4
 	for i in range(4):
 		var c: Color = book_colors[(i + 4) % book_colors.size()]
@@ -257,20 +346,16 @@ static func create_bookshelf_sprite() -> ImageTexture:
 static func create_plant_sprite() -> ImageTexture:
 	var img := Image.create(10, 14, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	# Pot
 	for x in range(3, 7):
 		for y in range(10, 13):
 			_px(img, x, y, Palette.ORANGE)
 	_px(img, 2, 10, Palette.ORANGE.darkened(0.2)); _px(img, 7, 10, Palette.ORANGE.darkened(0.2))
 	for x in range(2, 8):
 		_px(img, x, 13, Palette.ORANGE.darkened(0.3))
-	# Soil
 	for x in range(3, 7):
 		_px(img, x, 9, Palette.WOOD_DARK)
-	# Stem
 	_px(img, 5, 8, Palette.GREEN.darkened(0.3)); _px(img, 5, 7, Palette.GREEN.darkened(0.3))
 	_px(img, 5, 6, Palette.GREEN.darkened(0.2))
-	# Leaves
 	_px(img, 3, 5, Palette.GREEN); _px(img, 4, 4, Palette.GREEN); _px(img, 5, 3, Palette.GREEN)
 	_px(img, 6, 4, Palette.GREEN); _px(img, 7, 5, Palette.GREEN)
 	_px(img, 4, 5, Palette.GREEN.lightened(0.2)); _px(img, 6, 5, Palette.GREEN.lightened(0.2))
@@ -283,26 +368,20 @@ static func create_plant_sprite() -> ImageTexture:
 static func create_radio_sprite() -> ImageTexture:
 	var img := Image.create(14, 10, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	# Body
 	for x in range(2, 12):
 		for y in range(3, 9):
 			_px(img, x, y, Palette.DARK_GRAY)
 	for x in range(2, 12):
-		_px(img, x, 2, Palette.MID_GRAY)  # Top edge
-	# Speaker grille
+		_px(img, x, 2, Palette.MID_GRAY)
 	for x in range(3, 7):
 		for y in range(4, 8):
 			_px(img, x, y, Palette.OUTLINE)
 	_px(img, 4, 5, Palette.MID_GRAY); _px(img, 5, 6, Palette.MID_GRAY)
-	# Dial
 	_px(img, 9, 5, Palette.WARM_YELLOW); _px(img, 10, 5, Palette.WARM_YELLOW)
 	_px(img, 9, 6, Palette.ORANGE); _px(img, 10, 6, Palette.ORANGE)
-	# Antenna
 	_px(img, 3, 1, Palette.MID_GRAY); _px(img, 3, 0, Palette.MID_GRAY)
 	_px(img, 4, 1, Palette.MID_GRAY)
-	# Power light
 	_px(img, 11, 4, Palette.GREEN)
-	# Base
 	for x in range(1, 13):
 		_px(img, x, 9, Palette.OUTLINE)
 	return ImageTexture.create_from_image(img)
@@ -314,29 +393,23 @@ static func create_bed_sprite() -> ImageTexture:
 	var frame_c := Palette.WOOD_DARK
 	var mattress := Color("#6088b8")
 	var pillow := Palette.WHITE
-	# Headboard
 	for x in range(1, 5):
 		for y in range(1, 8):
 			_px(img, x, y, frame_c)
-	# Mattress
 	for x in range(5, 25):
 		for y in range(3, 9):
 			_px(img, x, y, mattress)
 	for x in range(5, 25):
 		_px(img, x, 3, mattress.lightened(0.2))
-	# Pillow
 	for x in range(5, 10):
 		for y in range(4, 7):
 			_px(img, x, y, pillow)
-	# Blanket fold
 	for x in range(12, 25):
 		_px(img, x, 5, mattress.darkened(0.15))
-	# Frame/legs
 	for x in range(0, 27):
 		_px(img, x, 9, frame_c)
 	_px(img, 2, 10, Palette.OUTLINE); _px(img, 2, 11, Palette.OUTLINE)
 	_px(img, 24, 10, Palette.OUTLINE); _px(img, 24, 11, Palette.OUTLINE)
-	# Footboard
 	for x in range(23, 27):
 		for y in range(4, 9):
 			_px(img, x, y, frame_c)
@@ -344,9 +417,8 @@ static func create_bed_sprite() -> ImageTexture:
 
 
 static func create_from_color(primary: Color) -> Array[ImageTexture]:
-	## Generate a character sprite from a primary color. Secondary = darkened, hair from natural tones.
+	## Generate a character sprite from a primary color.
 	var secondary: Color = primary.darkened(0.3)
-	# Pick hair from natural tones based on hue hash
 	var hair_idx := int(primary.h * 137.508) % PersonalityGenerator.HAIR_TONES.size()
 	var hair_color: Color = PersonalityGenerator.HAIR_TONES[hair_idx]
 	return create_character(primary, secondary, hair_color)

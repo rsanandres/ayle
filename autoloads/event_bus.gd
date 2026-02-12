@@ -60,6 +60,12 @@ signal group_rivalry_detected(group_a: RefCounted, group_b: RefCounted)
 signal storyline_updated(storyline: RefCounted)
 signal narrator_insight(text: String)
 
+# Achievement signals
+signal achievement_unlocked(id: String, name: String)
+
+# All agents dead
+signal all_agents_dead()
+
 # Game signals
 signal game_ready()
 signal game_paused()

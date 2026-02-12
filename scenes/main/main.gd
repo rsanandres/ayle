@@ -26,6 +26,23 @@ func _ready() -> void:
 	EventBus.game_ready.emit()
 	EventBus.agent_selected.connect(_on_agent_selected_camera)
 
+	# Game over overlay
+	var game_over := GameOverOverlay.new()
+	add_child(game_over)
+
+	# Tutorial hint overlay
+	var hint_overlay := HintOverlay.new()
+	add_child(hint_overlay)
+
+	# LLM loading overlay
+	_setup_loading_overlay()
+
+	# Auto-pause on focus loss
+	get_window().focus_exited.connect(func() -> void:
+		if SettingsManager.auto_pause_on_focus_loss and not TimeManager.is_paused:
+			TimeManager.toggle_pause()
+	)
+
 	# Try loading save on startup
 	if SaveManager.has_save():
 		call_deferred("_try_load_save")
@@ -93,6 +110,12 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Screenshot key (F12)
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F12:
+		_take_screenshot()
+		get_viewport().set_input_as_handled()
+		return
+
 	if event is InputEventMouseButton:
 		if expanded_mode:
 			_handle_expanded_input(event)
@@ -150,3 +173,48 @@ func _handle_expanded_input(event: InputEventMouseButton) -> void:
 func _on_agent_selected_camera(agent: Node2D) -> void:
 	if expanded_mode:
 		_follow_agent = agent
+
+
+func _take_screenshot() -> void:
+	var img := get_viewport().get_texture().get_image()
+	var timestamp := Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
+	var path := "user://screenshot_%s.png" % timestamp
+	img.save_png(path)
+	EventBus.narrative_event.emit("Screenshot saved.", [], 1.0)
+
+
+func _setup_loading_overlay() -> void:
+	# Show overlay while bundled LLM loads
+	var overlay := CanvasLayer.new()
+	overlay.layer = 95
+	overlay.name = "LoadingOverlay"
+	add_child(overlay)
+
+	var bg := ColorRect.new()
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0.05, 0.05, 0.08, 0.85)
+	bg.visible = false
+	overlay.add_child(bg)
+
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.add_child(center)
+
+	var lbl := Label.new()
+	lbl.text = "Loading AI brain..."
+	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	center.add_child(lbl)
+
+	# Show while model is loading
+	LLMManager.model_loading.connect(func(is_loading: bool) -> void:
+		bg.visible = is_loading
+		if not is_loading:
+			# Fade out
+			var tween := create_tween()
+			tween.tween_property(bg, "modulate:a", 0.0, 0.5)
+			tween.tween_callback(func() -> void:
+				overlay.queue_free()
+			)
+	)
