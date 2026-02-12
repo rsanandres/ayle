@@ -30,14 +30,22 @@ func get_active_events() -> Array[Dictionary]:
 
 
 func _on_day_changed(day: int) -> void:
+	# Get drama-based probability modifier from the DramaDirector.
+	var drama_mod: float = 1.0
+	if DramaDirector:
+		drama_mod = DramaDirector.get_probability_modifier()
+		# Sync narrator drama into the director once per day.
+		DramaDirector.sync_with_narrator()
+
 	# Roll for random events each day
 	for definition in _event_definitions:
 		# Check cooldown
 		var last_triggered: int = _cooldowns.get(definition.event_id, 0)
 		if day - last_triggered < definition.cooldown_days:
 			continue
-		# Roll probability
-		if randf() < definition.probability:
+		# Roll probability, scaled by drama pacing
+		var adjusted_prob: float = definition.probability * drama_mod
+		if randf() < adjusted_prob:
 			_execute_event(definition)
 
 
@@ -78,6 +86,9 @@ func _execute_event(definition: EventDefinition, specific_agents: Array = []) ->
 
 	# Apply immediate effects
 	_apply_effects(definition, affected)
+
+	# Apply cascading consequences
+	_apply_consequences(definition.event_id, affected)
 
 	# Create memories for witnesses
 	_create_event_memories(definition, affected)
@@ -151,6 +162,204 @@ func _apply_effects(definition: EventDefinition, affected: Array) -> void:
 			"recovery":
 				if agent.health_state:
 					agent.health_state.conditions.clear()
+
+
+func _apply_consequences(event_id: String, affected: Array) -> void:
+	match event_id:
+		"heated_argument":
+			_consequence_heated_argument(affected)
+		"flu_outbreak":
+			_consequence_flu_spread(affected)
+		"promotion":
+			_consequence_promotion_reactions(affected)
+		"exhaustion_collapse":
+			_consequence_exhaustion_collapse(affected)
+
+
+func _consequence_heated_argument(affected: Array) -> void:
+	# Need at least 2 agents for an argument; pick a second from nearby if only 1 targeted
+	var agents_in_argument: Array = affected.duplicate()
+	if agents_in_argument.size() == 1 and is_instance_valid(agents_in_argument[0]):
+		var nearby := AgentManager.get_agents_near(agents_in_argument[0].global_position, 120.0, agents_in_argument[0])
+		if not nearby.is_empty():
+			agents_in_argument.append(nearby[randi() % nearby.size()])
+	if agents_in_argument.size() < 2:
+		return
+
+	var agent_a: Node2D = agents_in_argument[0]
+	var agent_b: Node2D = agents_in_argument[1]
+	if not is_instance_valid(agent_a) or not is_instance_valid(agent_b):
+		return
+
+	# Add angry tags and reduce affinity
+	var rel_a: RelationshipEntry = agent_a.relationships.get_relationship(agent_b.agent_name)
+	rel_a.add_tag("angry_at_%s" % agent_b.agent_name)
+	rel_a.affinity = clampf(rel_a.affinity - 15.0, -100.0, 100.0)
+	EventBus.relationship_changed.emit(agent_a.agent_name, agent_b.agent_name, rel_a)
+
+	var rel_b: RelationshipEntry = agent_b.relationships.get_relationship(agent_a.agent_name)
+	rel_b.add_tag("angry_at_%s" % agent_a.agent_name)
+	rel_b.affinity = clampf(rel_b.affinity - 15.0, -100.0, 100.0)
+	EventBus.relationship_changed.emit(agent_b.agent_name, agent_a.agent_name, rel_b)
+
+	# Add memories about the argument
+	agent_a.memory.add_memory(
+		MemoryEntry.MemoryType.OBSERVATION,
+		"%s had a heated argument with %s. Things got personal." % [agent_a.agent_name, agent_b.agent_name],
+		7.0, PackedStringArray([agent_b.agent_name])
+	)
+	agent_a.memory.memories[-1].emotion = "anger"
+	agent_a.memory.memories[-1].sentiment = -0.7
+
+	agent_b.memory.add_memory(
+		MemoryEntry.MemoryType.OBSERVATION,
+		"%s had a heated argument with %s. Things got personal." % [agent_b.agent_name, agent_a.agent_name],
+		7.0, PackedStringArray([agent_a.agent_name])
+	)
+	agent_b.memory.memories[-1].emotion = "anger"
+	agent_b.memory.memories[-1].sentiment = -0.7
+
+	EventBus.narrative_event.emit(
+		"%s and %s had a bitter argument — their relationship took a hit." % [agent_a.agent_name, agent_b.agent_name],
+		[agent_a.agent_name, agent_b.agent_name], 7.0
+	)
+
+
+func _consequence_flu_spread(affected: Array) -> void:
+	# For each initially sick agent, check nearby agents for contagion
+	var newly_infected: Array = []
+	for sick_agent in affected:
+		if not is_instance_valid(sick_agent):
+			continue
+		var nearby := AgentManager.get_agents_near(sick_agent.global_position, 80.0, sick_agent)
+		for other in nearby:
+			if not is_instance_valid(other) or other in affected or other in newly_infected:
+				continue
+			if not other.health_state:
+				continue
+			# 30% chance of catching flu
+			if randf() < 0.3:
+				other.health_state.add_condition("flu")
+				other.needs.restore(NeedType.Type.ENERGY, -15.0)
+				other.needs.restore(NeedType.Type.HEALTH, -10.0)
+				newly_infected.append(other)
+				other.memory.add_memory(
+					MemoryEntry.MemoryType.OBSERVATION,
+					"%s caught the flu from being near %s." % [other.agent_name, sick_agent.agent_name],
+					5.0, PackedStringArray([sick_agent.agent_name])
+				)
+				other.memory.memories[-1].emotion = "discomfort"
+				other.memory.memories[-1].sentiment = -0.5
+
+	if not newly_infected.is_empty():
+		var names: Array = []
+		for a in newly_infected:
+			names.append(a.agent_name)
+		EventBus.narrative_event.emit(
+			"The flu is spreading! %s also caught it." % ", ".join(PackedStringArray(names)),
+			names, 6.0
+		)
+
+
+func _consequence_promotion_reactions(affected: Array) -> void:
+	if affected.is_empty():
+		return
+	var promoted_agent: Node2D = affected[0]
+	if not is_instance_valid(promoted_agent):
+		return
+
+	for agent in AgentManager.agents:
+		if not is_instance_valid(agent) or agent == promoted_agent:
+			continue
+		if not agent.personality:
+			continue
+
+		var agreeableness: float = agent.personality.agreeableness
+		var rel: RelationshipEntry = agent.relationships.get_relationship(promoted_agent.agent_name)
+
+		if agreeableness < 0.4:
+			# Jealousy — reduce affinity
+			rel.affinity = clampf(rel.affinity - 10.0, -100.0, 100.0)
+			rel.add_tag("jealous")
+			agent.memory.add_memory(
+				MemoryEntry.MemoryType.OBSERVATION,
+				"%s feels jealous about %s getting promoted. Why not me?" % [agent.agent_name, promoted_agent.agent_name],
+				5.0, PackedStringArray([promoted_agent.agent_name])
+			)
+			agent.memory.memories[-1].emotion = "jealousy"
+			agent.memory.memories[-1].sentiment = -0.5
+		elif agreeableness > 0.7:
+			# Supportive — increase affinity
+			rel.affinity = clampf(rel.affinity + 5.0, -100.0, 100.0)
+			agent.memory.add_memory(
+				MemoryEntry.MemoryType.OBSERVATION,
+				"%s is happy for %s getting promoted. They deserve it!" % [agent.agent_name, promoted_agent.agent_name],
+				4.0, PackedStringArray([promoted_agent.agent_name])
+			)
+			agent.memory.memories[-1].emotion = "happiness"
+			agent.memory.memories[-1].sentiment = 0.6
+
+		EventBus.relationship_changed.emit(agent.agent_name, promoted_agent.agent_name, rel)
+
+
+func _consequence_exhaustion_collapse(affected: Array) -> void:
+	for agent in affected:
+		if not is_instance_valid(agent):
+			continue
+
+		# Force energy to 0
+		agent.needs.set_value(NeedType.Type.ENERGY, 0.0)
+
+		# Add exhaustion condition if not already present
+		if agent.health_state and not agent.health_state.conditions.has("exhaustion"):
+			agent.health_state.add_condition("exhaustion")
+
+		# Try to find a bed and navigate to it
+		var bed: Node2D = _find_nearest_object(agent.global_position, "bed")
+		if bed:
+			agent.current_target = bed
+			agent.current_action = ActionType.Type.GO_TO_OBJECT
+			agent._navigate_to(bed.global_position)
+			agent.memory.add_memory(
+				MemoryEntry.MemoryType.OBSERVATION,
+				"%s collapsed from exhaustion and is stumbling toward the bed." % agent.agent_name,
+				7.0
+			)
+			agent.memory.memories[-1].emotion = "exhaustion"
+			agent.memory.memories[-1].sentiment = -0.8
+		else:
+			# No bed available — collapse in place
+			agent.state = AgentState.Type.IDLE
+			agent.memory.add_memory(
+				MemoryEntry.MemoryType.OBSERVATION,
+				"%s collapsed from exhaustion with nowhere to rest." % agent.agent_name,
+				8.0
+			)
+			agent.memory.memories[-1].emotion = "despair"
+			agent.memory.memories[-1].sentiment = -0.9
+
+		EventBus.narrative_event.emit(
+			"%s collapsed from exhaustion!" % agent.agent_name,
+			[agent.agent_name], 8.0
+		)
+
+
+func _find_nearest_object(pos: Vector2, obj_type: String) -> Node2D:
+	var world: Node2D = null
+	var tree := Engine.get_main_loop()
+	if tree is SceneTree:
+		world = tree.get_first_node_in_group("world")
+	if not world or not world.has_method("get_all_objects"):
+		return null
+	var best: Node2D = null
+	var best_dist: float = INF
+	for obj in world.get_all_objects():
+		if obj.object_type == obj_type:
+			var dist: float = pos.distance_to(obj.global_position)
+			if dist < best_dist:
+				best_dist = dist
+				best = obj
+	return best
 
 
 func _create_event_memories(definition: EventDefinition, affected: Array) -> void:
