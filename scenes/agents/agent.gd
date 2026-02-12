@@ -34,6 +34,8 @@ var _interaction_particles: CPUParticles2D = null
 var _death_particles: CPUParticles2D = null
 var _mood_timer: Timer = null
 var _current_mood: String = ""
+var _hover_tooltip: PanelContainer = null
+var _is_hovered: bool = false
 
 @onready var needs: AgentNeeds = $AgentNeeds
 @onready var heuristic_brain: HeuristicBrain = $HeuristicBrain
@@ -75,6 +77,7 @@ func _ready() -> void:
 	EventBus.day_changed.connect(_on_day_changed)
 	EventBus.agent_selected.connect(_on_global_agent_selected)
 	EventBus.agent_deselected.connect(_on_global_agent_deselected)
+	_setup_hover_tooltip()
 
 
 func _exit_tree() -> void:
@@ -464,6 +467,8 @@ func _draw_selection_ring() -> void:
 func _on_global_agent_selected(agent: Node2D) -> void:
 	_is_selected = (agent == self)
 	_selection_ring.visible = _is_selected
+	if _is_selected and _hover_tooltip:
+		_hover_tooltip.visible = false
 
 
 func _on_global_agent_deselected() -> void:
@@ -689,3 +694,68 @@ func _process(_delta: float) -> void:
 	# Redraw selection ring for pulse animation
 	if _is_selected and _selection_ring:
 		_selection_ring.queue_redraw()
+	# Update hover tooltip position
+	if _is_hovered and _hover_tooltip and _hover_tooltip.visible:
+		_hover_tooltip.global_position = global_position + Vector2(12, -40)
+
+
+func _setup_hover_tooltip() -> void:
+	_hover_tooltip = PanelContainer.new()
+	_hover_tooltip.visible = false
+	_hover_tooltip.z_index = 50
+	_hover_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.08, 0.12, 0.9)
+	style.border_color = Color(0.35, 0.35, 0.4, 0.8)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(2)
+	style.set_content_margin_all(3)
+	_hover_tooltip.add_theme_stylebox_override("panel", style)
+	var lbl := Label.new()
+	lbl.name = "TooltipLabel"
+	lbl.add_theme_font_size_override("font_size", 7)
+	lbl.add_theme_color_override("font_color", Color(0.9, 0.88, 0.8))
+	_hover_tooltip.add_child(lbl)
+	add_child(_hover_tooltip)
+	# Connect mouse hover on ClickArea
+	var click_area: Area2D = $ClickArea
+	click_area.mouse_entered.connect(_on_mouse_entered)
+	click_area.mouse_exited.connect(_on_mouse_exited)
+
+
+func _on_mouse_entered() -> void:
+	if is_dead or _is_selected:
+		return
+	_is_hovered = true
+	_update_hover_tooltip()
+	_hover_tooltip.visible = true
+
+
+func _on_mouse_exited() -> void:
+	_is_hovered = false
+	_hover_tooltip.visible = false
+
+
+func _update_hover_tooltip() -> void:
+	var lbl: Label = _hover_tooltip.get_node("TooltipLabel")
+	if not lbl:
+		return
+	var state_names := ["Idle", "Deciding", "Walking", "Using object", "Talking"]
+	var state_text: String = state_names[state] if state < state_names.size() else "?"
+	# Find lowest need
+	var lowest_need_name := ""
+	var lowest_val: float = 999.0
+	var all_values: Dictionary = needs.get_all_values()
+	for need in all_values:
+		if need == NeedType.Type.HEALTH:
+			continue
+		var val: float = all_values[need]
+		if val < lowest_val:
+			lowest_val = val
+			lowest_need_name = NeedType.to_string_name(need)
+	var text := "%s | %s" % [agent_name, state_text]
+	if lowest_val < 50.0:
+		text += "\nNeeds %s (%.0f%%)" % [lowest_need_name.to_lower(), lowest_val]
+	if _current_mood != "":
+		text += " %s" % _current_mood
+	lbl.text = text

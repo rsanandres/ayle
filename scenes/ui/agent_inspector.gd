@@ -9,7 +9,7 @@ var _personality_label: Label
 var _state_label: Label
 var _health_label: Label
 var _needs_container: VBoxContainer
-var _relationships_label: Label
+var _relationships_container: VBoxContainer
 var _groups_label: Label
 var _storylines_label: Label
 var _memory_label: Label
@@ -73,10 +73,9 @@ func _build_ui() -> void:
 	rel_title.add_theme_font_size_override("font_size", 9)
 	_vbox.add_child(rel_title)
 
-	_relationships_label = Label.new()
-	_relationships_label.add_theme_font_size_override("font_size", 8)
-	_relationships_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_vbox.add_child(_relationships_label)
+	_relationships_container = VBoxContainer.new()
+	_relationships_container.add_theme_constant_override("separation", 1)
+	_vbox.add_child(_relationships_container)
 
 	_vbox.add_child(HSeparator.new())
 
@@ -170,7 +169,7 @@ func _update_dynamic() -> void:
 		_health_label.text = ""
 	# Relationships
 	if _agent.relationships:
-		_relationships_label.text = _agent.relationships.get_all_as_summary()
+		_rebuild_relationships()
 	# Groups
 	_groups_label.text = GroupManager.get_agent_group_names(_agent.agent_name)
 	# Storylines
@@ -207,3 +206,88 @@ func _rebuild_need_bars() -> void:
 		hbox.add_child(bar)
 		_needs_container.add_child(hbox)
 		_need_bars[need] = bar
+
+
+func _rebuild_relationships() -> void:
+	for child in _relationships_container.get_children():
+		child.queue_free()
+	if not _agent or not _agent.relationships:
+		return
+	var all_rels: Dictionary = _agent.relationships.get_all_relationships()
+	if all_rels.is_empty():
+		var empty_lbl := Label.new()
+		empty_lbl.text = "(no relationships)"
+		empty_lbl.add_theme_font_size_override("font_size", 7)
+		empty_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.55))
+		_relationships_container.add_child(empty_lbl)
+		return
+	# Sort by absolute affinity (most significant first), max 5
+	var sorted_names: Array[String] = []
+	for n in all_rels:
+		var rel: RelationshipEntry = all_rels[n]
+		if rel.familiarity > 5.0:
+			sorted_names.append(n)
+	sorted_names.sort_custom(func(a: String, b: String) -> bool:
+		return absf(all_rels[a].affinity) > absf(all_rels[b].affinity)
+	)
+	var count: int = mini(sorted_names.size(), 5)
+	for i in range(count):
+		var rel_name: String = sorted_names[i]
+		var rel: RelationshipEntry = all_rels[rel_name]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 2)
+		# Status icon
+		var icon := Label.new()
+		icon.add_theme_font_size_override("font_size", 7)
+		match rel.relationship_status:
+			RelationshipEntry.Status.DATING, RelationshipEntry.Status.PARTNERS:
+				icon.text = "♥"
+				icon.add_theme_color_override("font_color", Color(1.0, 0.4, 0.5))
+			RelationshipEntry.Status.CRUSHING:
+				icon.text = "~"
+				icon.add_theme_color_override("font_color", Color(1.0, 0.6, 0.7))
+			RelationshipEntry.Status.EX:
+				icon.text = "x"
+				icon.add_theme_color_override("font_color", Color(0.6, 0.5, 0.6))
+			_:
+				if rel.affinity > 50.0:
+					icon.text = "+"
+					icon.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
+				elif rel.affinity < -30.0:
+					icon.text = "-"
+					icon.add_theme_color_override("font_color", Color(0.9, 0.4, 0.4))
+				else:
+					icon.text = "·"
+					icon.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
+		icon.custom_minimum_size.x = 8
+		row.add_child(icon)
+		# Name
+		var name_lbl := Label.new()
+		name_lbl.text = rel_name
+		name_lbl.custom_minimum_size.x = 40
+		name_lbl.add_theme_font_size_override("font_size", 7)
+		row.add_child(name_lbl)
+		# Affinity bar (centered on 0, range -100 to 100)
+		var bar_bg := ColorRect.new()
+		bar_bg.custom_minimum_size = Vector2(60, 6)
+		bar_bg.color = Color(0.15, 0.15, 0.2)
+		row.add_child(bar_bg)
+		var bar_fill := ColorRect.new()
+		var norm: float = clampf(rel.affinity / 100.0, -1.0, 1.0)
+		if norm >= 0:
+			bar_fill.color = Color(0.3, 0.7, 0.3, 0.8)
+			bar_fill.position.x = 30.0
+			bar_fill.size = Vector2(norm * 30.0, 6.0)
+		else:
+			bar_fill.color = Color(0.8, 0.3, 0.3, 0.8)
+			var width: float = absf(norm) * 30.0
+			bar_fill.position.x = 30.0 - width
+			bar_fill.size = Vector2(width, 6.0)
+		bar_bg.add_child(bar_fill)
+		# Center marker
+		var center_mark := ColorRect.new()
+		center_mark.position = Vector2(29.0, 0.0)
+		center_mark.size = Vector2(1.0, 6.0)
+		center_mark.color = Color(0.4, 0.4, 0.45)
+		bar_bg.add_child(center_mark)
+		_relationships_container.add_child(row)

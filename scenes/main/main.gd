@@ -39,6 +39,10 @@ func _ready() -> void:
 	var hint_overlay := HintOverlay.new()
 	add_child(hint_overlay)
 
+	# Event notification feed (top-right floating notifications)
+	var event_notif := EventNotification.new()
+	add_child(event_notif)
+
 	# LLM loading overlay
 	_setup_loading_overlay()
 

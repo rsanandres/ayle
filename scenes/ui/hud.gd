@@ -11,6 +11,8 @@ extends CanvasLayer
 var _selected_agent: Node2D = null
 var _god_mode: bool = false
 var _drama_label: Label = null
+var _pause_overlay: ColorRect = null
+var _pause_label: Label = null
 var _god_toolbar: GodToolbar
 var _agent_inspector: AgentInspector
 var _narrative_log: NarrativeLog
@@ -93,6 +95,11 @@ func _ready() -> void:
 	LLMManager.ollama_status_changed.connect(_on_llm_status_changed)
 	LLMManager.active_backend_changed.connect(_on_llm_backend_changed)
 
+	# Pause visual
+	EventBus.time_paused.connect(_on_paused)
+	EventBus.time_resumed.connect(_on_resumed)
+	_setup_pause_overlay()
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -139,6 +146,10 @@ func _on_time_tick(_gm: float) -> void:
 
 func _on_speed_changed(_i: int) -> void:
 	_update_speed()
+	# Brief flash on the speed label
+	speed_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5, 1.0))
+	var tween := create_tween()
+	tween.tween_property(speed_label, "theme_override_colors/font_color", Color(0.75, 0.75, 0.8, 0.8), 0.5)
 
 
 func _update_time() -> void:
@@ -160,7 +171,6 @@ func _update_drama() -> void:
 	if level < 1.0:
 		_drama_label.text = ""
 		return
-	var mood: String = DramaDirector.office_mood as String
 	var desc: String
 	if level >= 7.0:
 		desc = "CLIMAX"
@@ -360,3 +370,43 @@ func _on_llm_backend_changed(backend_name: String) -> void:
 			_show_toast("Using bundled AI model")
 		"ollama":
 			_show_toast("Connected to Ollama")
+
+
+func _setup_pause_overlay() -> void:
+	_pause_overlay = ColorRect.new()
+	_pause_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_pause_overlay.color = Color(0.05, 0.05, 0.1, 0.3)
+	_pause_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_overlay.visible = false
+	add_child(_pause_overlay)
+
+	_pause_label = Label.new()
+	_pause_label.text = "PAUSED"
+	_pause_label.add_theme_font_size_override("font_size", 14)
+	_pause_label.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7, 0.7))
+	_pause_label.add_theme_color_override("font_shadow_color", Color(0.1, 0.1, 0.15, 0.5))
+	_pause_label.add_theme_constant_override("shadow_offset_x", 1)
+	_pause_label.add_theme_constant_override("shadow_offset_y", 1)
+	_pause_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pause_label.anchor_left = 0.5
+	_pause_label.anchor_right = 0.5
+	_pause_label.anchor_top = 0.0
+	_pause_label.offset_left = -40
+	_pause_label.offset_right = 40
+	_pause_label.offset_top = 2
+	_pause_label.offset_bottom = 18
+	_pause_label.visible = false
+	add_child(_pause_label)
+
+
+func _on_paused() -> void:
+	_pause_overlay.visible = true
+	_pause_label.visible = true
+	_pause_label.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(_pause_label, "modulate:a", 1.0, 0.2)
+
+
+func _on_resumed() -> void:
+	_pause_overlay.visible = false
+	_pause_label.visible = false
