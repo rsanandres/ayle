@@ -86,13 +86,14 @@ func _load_progress() -> void:
 	var unlocked_list: Array = data.get("unlocked", [])
 	for id in unlocked_list:
 		_unlocked[str(id)] = true
+	_objects_placed = data.get("objects_placed", 0)
 
 
 func _save_progress() -> void:
 	var unlocked_list: Array = []
 	for id in _unlocked:
 		unlocked_list.append(id)
-	var data := {"unlocked": unlocked_list}
+	var data := {"unlocked": unlocked_list, "objects_placed": _objects_placed}
 	var file := FileAccess.open(ACHIEVEMENTS_PATH, FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(data, "\t"))
@@ -145,6 +146,10 @@ func _connect_signals() -> void:
 			unlock("best_friends")
 		elif affinity <= -50.0:
 			unlock("enemies")
+		# Check for love triangle: 3+ agents each with romantic_interest > 40 toward another in the set
+		var ri: float = rel.get("romantic_interest") if rel.get("romantic_interest") != null else 0.0
+		if ri > 40.0 and not is_unlocked("love_triangle"):
+			_check_love_triangle()
 	)
 
 	EventBus.confession_made.connect(func(_a: String, _b: String, accepted: bool) -> void:
@@ -171,6 +176,8 @@ func _connect_signals() -> void:
 		_objects_placed += 1
 		if _objects_placed >= 5:
 			unlock("the_architect")
+		else:
+			_save_progress()  # Persist counter even before achievement unlocks
 	)
 
 	EventBus.storyline_updated.connect(func(sl: RefCounted) -> void:
@@ -192,3 +199,48 @@ func _check_agent_count() -> void:
 		unlock("full_house")
 	if count >= 50:
 		unlock("metropolis")
+
+
+func _check_love_triangle() -> void:
+	# Find agents who have romantic_interest > 40 toward at least one other agent
+	# Build a set of agents with outgoing romantic interest > 40
+	var romantic_agents: Dictionary = {}  # agent_name -> Array of target names
+	for agent in AgentManager.agents:
+		if not agent.has_node("AgentRelationships"):
+			continue
+		var rels: Dictionary = agent.get_node("AgentRelationships").get_all_relationships()
+		var targets: Array[String] = []
+		for target_name in rels:
+			var rel: RelationshipEntry = rels[target_name]
+			if rel.romantic_interest > 40.0:
+				targets.append(target_name)
+		if not targets.is_empty():
+			romantic_agents[agent.agent_name] = targets
+	# Check if there exist 3 agents in the romantic set where each has romantic interest
+	# toward at least one other in the set of 3
+	var names: Array = romantic_agents.keys()
+	if names.size() < 3:
+		return
+	# For small populations, brute force check all triples
+	for i in range(names.size()):
+		for j in range(i + 1, names.size()):
+			for k in range(j + 1, names.size()):
+				var a: String = names[i]
+				var b: String = names[j]
+				var c: String = names[k]
+				var trio: Array[String] = [a, b, c]
+				# Each must have romantic interest toward at least one other in the trio
+				var all_connected := true
+				for member in trio:
+					var has_link := false
+					var member_targets: Array = romantic_agents[member]
+					for other in trio:
+						if other != member and other in member_targets:
+							has_link = true
+							break
+					if not has_link:
+						all_connected = false
+						break
+				if all_connected:
+					unlock("love_triangle")
+					return

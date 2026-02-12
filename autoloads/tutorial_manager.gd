@@ -9,6 +9,7 @@ var _shown_hints: Dictionary = {}  # hint_id -> true
 var _hints_disabled: bool = false
 var _session_time: float = 0.0
 var _first_conversation_seen: bool = false
+var _game_started: bool = false
 
 # Hint definitions: {id, text, trigger_type, trigger_value}
 var _hints := [
@@ -25,10 +26,16 @@ func _ready() -> void:
 	if _hints_disabled:
 		return
 	EventBus.conversation_started.connect(_on_first_conversation)
+	EventBus.game_ready.connect(_on_game_ready)
+
+
+func _on_game_ready() -> void:
+	_game_started = true
+	_session_time = 0.0
 
 
 func _process(delta: float) -> void:
-	if _hints_disabled:
+	if _hints_disabled or not _game_started:
 		return
 	_session_time += delta
 	for hint in _hints:

@@ -89,6 +89,9 @@ func to_dict() -> Dictionary:
 		"health": health,
 		"conditions": conditions.duplicate(),
 		"max_lifespan_days": max_lifespan_days,
+		"_young_threshold": _young_threshold,
+		"_adult_threshold": _adult_threshold,
+		"_senior_threshold": _senior_threshold,
 	}
 
 
@@ -101,6 +104,14 @@ static func from_dict(data: Dictionary) -> HealthState:
 	for c in raw_cond:
 		hs.conditions.append(str(c))
 	hs.max_lifespan_days = data.get("max_lifespan_days", 100)
-	hs.randomize_lifespan()
-	hs.max_lifespan_days = data.get("max_lifespan_days", hs.max_lifespan_days)
+	# Restore saved thresholds if present; otherwise recalculate from max_lifespan_days
+	if data.has("_young_threshold") and data.has("_adult_threshold") and data.has("_senior_threshold"):
+		hs._young_threshold = data["_young_threshold"]
+		hs._adult_threshold = data["_adult_threshold"]
+		hs._senior_threshold = data["_senior_threshold"]
+	else:
+		# Backward compat: derive thresholds deterministically from saved max_lifespan_days
+		hs._young_threshold = int(hs.max_lifespan_days * 0.2)
+		hs._adult_threshold = int(hs.max_lifespan_days * 0.6)
+		hs._senior_threshold = int(hs.max_lifespan_days * 0.8)
 	return hs
